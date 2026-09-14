@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Banco de dados local (cada pessoa gera o seu)
+data/
+
+# Segredos
+.env
+
+# Anotações pessoais de trabalho (lista de pedidos de mudança)
+mudanças
+mudanças.md
