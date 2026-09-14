@@ -1,0 +1,18 @@
+{#- Icon picker: a group of radio buttons, one per icon from monitor/icons.py.
+    Usage: {{ icon_picker("new-category", "tag", category_icons) }}
+    The radios are visually hidden but still focusable, so arrow keys and screen readers work. -#}
+{% from "_icons.html" import icon %}
+{% macro icon_picker(id_prefix, selected, icons) -%}
+<fieldset class="icon-picker">
+  <legend>Ícone</legend>
+  <div class="icon-picker-grid">
+    {%- for name, label in icons.items() %}
+    <input class="sr-only" type="radio" name="icon" value="{{ name }}" id="{{ id_prefix }}-icon-{{ name }}"
+           {% if name == selected %}checked{% endif %}>
+    <label for="{{ id_prefix }}-icon-{{ name }}" title="{{ label }}">
+      {{ icon(name, 18) }}<span class="sr-only">{{ label }}</span>
+    </label>
+    {%- endfor %}
+  </div>
+</fieldset>
+{%- endmacro %}

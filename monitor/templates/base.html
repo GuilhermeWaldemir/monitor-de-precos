@@ -1,0 +1,120 @@
+{% from "_icons.html" import icon %}
+{% from "_icon_picker.html" import icon_picker %}
+{% set active_category_id = active_category_id|default(none) %}
+<!doctype html>
+<html lang="pt-BR" data-theme="{{ settings.theme }}" data-font="{{ settings.font }}" data-card-glow="{{ settings.card_glow }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Monitor de Preços{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">Monitor de Preços</a>
+
+    <form class="search" role="search" method="get" action="{{ url_for('search') }}">
+      <label class="sr-only" for="search-input">Buscar produtos</label>
+      <span class="search-icon">{{ icon("search", 18) }}</span>
+      <input id="search-input" type="search" name="q" value="{{ search_query|default('') }}"
+             placeholder="Buscar produtos" autocomplete="off" maxlength="100" enterkeyhint="search">
+      <button type="button" class="search-clear" aria-label="Limpar busca">{{ icon("x", 16) }}</button>
+      <kbd class="search-key" aria-hidden="true">/</kbd>
+    </form>
+
+    <a class="button" href="{{ url_for('new_product', category=active_category_id) }}">
+      {{ icon("plus") }}<span>Adicionar produto</span>
+    </a>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" aria-label="Categorias">
+      <p class="sidebar-title">Categorias</p>
+      <ul class="nav-list">
+        <li>
+          <a class="nav-item" href="{{ url_for('index') }}"
+             {% if request.endpoint == "index" %}aria-current="page"{% endif %}>
+            {{ icon("grid") }}<span class="nav-label">Todos</span><span class="nav-count">{{ total_products }}</span>
+          </a>
+        </li>
+        {% for category in categories %}
+        <li>
+          <a class="nav-item" href="{{ url_for('category_page', category_id=category.id) }}"
+             {% if category.id == active_category_id %}aria-current="page"{% endif %}>
+            {{ icon(category.icon) }}<span class="nav-label">{{ category.name }}</span><span class="nav-count">{{ category.product_count }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <details class="new-category">
+        <summary class="nav-item nav-item-muted">{{ icon("plus") }}<span class="nav-label">Nova categoria</span></summary>
+        <form method="post" action="{{ url_for('create_category') }}" class="new-category-form">
+          <label class="sr-only" for="new-category-name">Nome da nova categoria</label>
+          <input id="new-category-name" name="name" maxlength="40" placeholder="Ex.: Livros" required>
+          {{ icon_picker("new-category", "tag", category_icons) }}
+          <button type="submit" class="button button-small">Criar</button>
+        </form>
+      </details>
+
+      <div class="sidebar-footer">
+        <a class="nav-item" href="{{ url_for('settings') }}"
+           {% if request.endpoint == "settings" %}aria-current="page"{% endif %}>
+          {{ icon("settings") }}<span class="nav-label">Configurações</span>
+        </a>
+      </div>
+    </nav>
+
+    <main id="main" class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flashes" role="status">
+            {% for category, message in messages %}
+              <li class="flash flash-{{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script>
+    // Visual feedback: checking prices can take a few seconds.
+    document.querySelectorAll("form[data-busy]").forEach(function (form) {
+      form.addEventListener("submit", function () {
+        var button = form.querySelector("button[type=submit]");
+        button.disabled = true;
+        button.textContent = form.dataset.busy;
+      });
+    });
+    // Search: "×" clears the field; "/" focuses it from anywhere (except while typing).
+    (function () {
+      var input = document.getElementById("search-input");
+      document.querySelector(".search-clear").addEventListener("click", function () {
+        input.value = "";
+        input.focus();
+      });
+      document.addEventListener("keydown", function (event) {
+        var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+        if (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault();
+          input.focus();
+          input.select();
+        }
+      });
+    })();
+    // Ask before destructive actions (delete product, source, category).
+    document.querySelectorAll("form[data-confirm]").forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+      });
+    });
+  </script>
+  <script src="{{ url_for('static', filename='js/card-glow.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

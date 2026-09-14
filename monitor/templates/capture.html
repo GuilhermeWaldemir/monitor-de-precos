@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Capturar preço · Monitor de Preços{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Capturar preço</h1>
+    <p class="muted">Confira o que foi lido da página antes de salvar.</p>
+  </div>
+</div>
+
+{% if error %}
+  <p class="flash flash-error" role="alert">{{ error }}</p>
+{% endif %}
+
+{% if page %}
+<section class="card capture-page">
+  <div class="capture-image">
+    {% if page.image_url %}
+      <img src="{{ page.image_url }}" alt="" referrerpolicy="no-referrer">
+    {% else %}
+      {{ icon("package", 40) }}
+    {% endif %}
+  </div>
+  <div class="capture-info">
+    <p class="eyebrow">{{ page.store }}</p>
+    <h2>{{ page.name or "Página sem nome de produto" }}</h2>
+    <div class="chips">
+      {% if page.mpn %}<span class="chip chip-code" title="Código do fabricante na página">{{ page.mpn }}</span>{% endif %}
+      {% if page.gtin %}<span class="chip chip-code" title="EAN na página">{{ page.gtin }}</span>{% endif %}
+    </div>
+    <a class="capture-url" href="{{ page.url }}" target="_blank" rel="noopener noreferrer">{{ page.url }}</a>
+  </div>
+</section>
+
+<form class="card form" method="post" action="{{ url_for('save_capture') }}">
+  {#- The captured data travels again in hidden fields; the server validates it again. -#}
+  <input type="hidden" name="url" value="{{ page.url }}">
+  <input type="hidden" name="name" value="{{ page.name }}">
+  <input type="hidden" name="image" value="{{ page.image_url or '' }}">
+  <input type="hidden" name="mpn" value="{{ page.mpn or '' }}">
+  <input type="hidden" name="gtin" value="{{ page.gtin or '' }}">
+
+  <label for="capture-price">Preço</label>
+  <input id="capture-price" name="price" inputmode="decimal" required placeholder="Ex.: 929,99"
+         value="{{ page.price|brl if page.price is not none else typed_price }}">
+  {% if page.price is none %}
+    <p class="hint">Não foi possível ler o preço dessa página. Digite o valor que aparece na loja.</p>
+  {% endif %}
+
+  {% if matches %}
+    <fieldset class="capture-choice">
+      <legend>Salvar em</legend>
+      {% for match in matches %}
+        <label class="capture-option">
+          <input type="radio" name="link_id" value="{{ match.link.id }}" {% if loop.first %}checked{% endif %}>
+          <span>
+            <strong>{{ match.link.product_name }}</strong>
+            <span class="muted">· {{ match.link.store }}</span>
+            {% if match.code_matches is true %}<span class="badge badge-best">código confere</span>{% endif %}
+            {% if match.code_matches is false %}<span class="badge badge-error">código diferente, confira</span>{% endif %}
+          </span>
+        </label>
+      {% endfor %}
+    </fieldset>
+  {% elif products %}
+    <label for="capture-product">Essa página ainda não é fonte de nenhum produto. Adicionar como fonte de:</label>
+    <select id="capture-product" name="product_id" required>
+      <option value="" disabled selected>Escolha um produto</option>
+      {% for product in products %}
+        <option value="{{ product.id }}">{{ product.name }} ({{ product.category_name }})</option>
+      {% endfor %}
+    </select>
+  {% endif %}
+
+  <div class="form-actions">
+    <a class="link-button"
+       href="{{ url_for('new_product', name=page.name, code=page.mpn or page.gtin or '', links=page.url) }}">Cadastrar como novo produto</a>
+    {% if matches or products %}
+      <button type="submit" class="button">Salvar preço</button>
+    {% endif %}
+  </div>
+</form>
+{% endif %}
+{% endblock %}

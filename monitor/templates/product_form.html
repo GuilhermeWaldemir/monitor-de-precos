@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{#- Used to create (product is none) and to edit (product is a db row). -#}
+{% set editing = product is not none %}
+
+{% block title %}{{ "Editar produto" if editing else "Adicionar produto" }} · Monitor de Preços{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ "Editar produto" if editing else "Adicionar produto" }}</h1>
+    <p class="muted">
+      {{ "Mude o nome, a categoria ou o código." if editing else "Dê um nome ao produto e cole o link dele em cada loja." }}
+    </p>
+  </div>
+</div>
+
+<form class="card form" method="post"
+      action="{{ url_for('edit_product', product_id=product.id) if editing else url_for('create_product') }}"
+      {% if not editing %}data-busy="Verificando preços…"{% endif %}>
+
+  {% if error %}
+    <p class="flash flash-error" role="alert">
+      {{ error }}
+      {% if duplicate %}<a href="{{ url_for('product_page', product_id=duplicate.id) }}">Abrir “{{ duplicate.name }}”</a>{% endif %}
+    </p>
+  {% endif %}
+
+  {% if similar %}
+    <div class="similar-warning" role="alert">
+      <p><strong>Você já tem produtos parecidos.</strong> Confira antes de salvar, para não cadastrar o mesmo produto duas vezes.</p>
+      <ul>
+        {% for p in similar %}
+          <li>
+            <a href="{{ url_for('product_page', product_id=p.id) }}" target="_blank" rel="noopener">{{ p.name }}</a>
+            <span class="muted">· {{ p.category_name }}{% if p.same_code %} · mesmo código{% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <label for="name">Nome do produto</label>
+  <input id="name" name="name" value="{{ form.get('name', '') }}" placeholder="Ex.: Memória Kingston Fury Beast 16GB DDR4" required>
+
+  <label for="category_id">Categoria</label>
+  <select id="category_id" name="category_id" required>
+    <option value="" disabled {% if not form.get('category_id') %}selected{% endif %}>Escolha uma categoria</option>
+    {% for category in categories %}
+      <option value="{{ category.id }}" {% if form.get('category_id')|string == category.id|string %}selected{% endif %}>{{ category.name }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="code">Código do fabricante ou EAN <span class="optional">(opcional)</span></label>
+  <input id="code" name="code" value="{{ form.get('code', '') }}" placeholder="Ex.: KF432C16BB1/16 ou 7891350034240">
+  <p class="hint">O código garante que as lojas vendem <em>o mesmo</em> produto. Em perfumes e roupas, use o EAN (os números do código de barras).</p>
+
+  {% if not editing %}
+    <label for="links">Links, um por linha</label>
+    <textarea id="links" name="links" rows="5" required placeholder="https://www.kabum.com.br/produto/...
+https://www.amazon.com.br/dp/...
+https://www.terabyteshop.com.br/produto/...">{{ form.get('links', '') }}</textarea>
+  {% endif %}
+
+  <div class="form-actions">
+    {% if editing %}
+      <a class="link-button" href="{{ url_for('product_page', product_id=product.id) }}">Cancelar</a>
+      <button type="submit" class="button">Salvar alterações</button>
+    {% else %}
+      <a class="link-button" href="{{ url_for('index') }}">Cancelar</a>
+      {% if similar %}
+        <input type="hidden" name="confirm" value="1">
+        <button type="submit" class="button">Salvar mesmo assim</button>
+      {% else %}
+        <button type="submit" class="button">Salvar e verificar preços</button>
+      {% endif %}
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

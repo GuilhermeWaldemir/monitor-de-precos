@@ -1,0 +1,56 @@
+{#- Price per store with bars. Expects `product` (a compare.ProductComparison). -#}
+{% from "_icons.html" import icon %}
+{% set best = product.best %}
+<ul class="offers">
+  {% for offer in product.offers %}
+  {% set is_best = best and offer.link_id == best.link_id %}
+  <li class="offer{% if is_best %} is-best{% endif %}">
+    <a class="offer-store" href="{{ offer.url }}" target="_blank" rel="noopener">
+      {{ offer.store }}{{ icon("external", 14) }}<span class="sr-only">(abre a loja em outra aba)</span>
+    </a>
+
+    <div class="offer-bar" aria-hidden="true">
+      <span style="width: {{ product.bar_percent(offer) }}%"></span>
+    </div>
+
+    <div class="offer-price">
+      {% if offer.price is not none %}
+        {{ offer.price|brl }}
+        {% set diff = product.difference_from_best(offer) %}
+        {% if diff %}<small>+{{ diff|brl }}</small>{% endif %}
+      {% else %}
+        <span class="muted">—</span>
+      {% endif %}
+    </div>
+
+    <div class="offer-meta">
+      {% if is_best %}<span class="badge badge-best">melhor preço</span>{% endif %}
+      {% if offer.price is not none %}
+        {% set source_labels = {"auto": "lido da loja", "manual": "informado por você", "capture": "capturado da página"} %}
+        <span class="muted">{{ source_labels[offer.source] }} em {{ offer.price_checked_at|when }}</span>
+      {% elif not offer.error %}
+        <span class="muted">ainda não verificado</span>
+      {% endif %}
+      {% if offer.in_stock is false %}<span class="badge badge-warn">sem estoque</span>{% endif %}
+      {% if offer.code_matches is false %}<span class="badge badge-error">código diferente na página, confira o link</span>{% endif %}
+      {% if offer.source in ("auto", "capture") and offer.code_matches is none and product.manufacturer_code %}<span class="badge badge-warn">código não confirmado na página</span>{% endif %}
+      {% if offer.error %}<span class="badge badge-error">{{ offer.error }}</span>{% endif %}
+
+      <span class="offer-actions">
+        <details class="manual">
+          <summary>informar preço</summary>
+          <form method="post" action="{{ url_for('manual_price', link_id=offer.link_id) }}" class="inline-form">
+            <label class="sr-only" for="price-{{ offer.link_id }}">Preço na {{ offer.store }}</label>
+            <input id="price-{{ offer.link_id }}" name="price" inputmode="decimal" placeholder="Ex.: 929,99" required>
+            <button type="submit" class="button button-small">Salvar</button>
+          </form>
+        </details>
+        <form method="post" action="{{ url_for('delete_link', link_id=offer.link_id) }}"
+              data-confirm="Remover a fonte {{ offer.store }} e o histórico dela?">
+          <button type="submit" class="link-button">remover</button>
+        </form>
+      </span>
+    </div>
+  </li>
+  {% endfor %}
+</ul>

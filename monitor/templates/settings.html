@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Configurações · Monitor de Preços{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Configurações</h1>
+    <p class="muted">Ajuste a aparência e as animações do site.</p>
+  </div>
+</div>
+
+{% if error %}
+  <p class="flash flash-error" role="alert">{{ error }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="{{ url_for('settings') }}">
+  <h2>Aparência</h2>
+
+  <fieldset class="settings-fieldset" data-preview="theme">
+    <legend>Tema</legend>
+    <div class="option-grid">
+      {% for option in theme_options %}
+        <label class="option-card">
+          <input type="radio" name="theme" value="{{ option.value }}"
+                 {% if option.value == settings.theme %}checked{% endif %}>
+          <span class="theme-preview theme-preview-{{ option.value }}" aria-hidden="true">
+            <span class="theme-preview-bar"></span>
+            <span class="theme-preview-line"></span>
+            <span class="theme-preview-line short"></span>
+          </span>
+          <span class="option-text">
+            <strong>{{ option.label }}</strong>
+            <span class="muted">{{ option.description }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <fieldset class="settings-fieldset" data-preview="font">
+    <legend>Fonte</legend>
+    <div class="option-grid">
+      {% for option in font_options %}
+        <label class="option-card">
+          <input type="radio" name="font" value="{{ option.value }}"
+                 {% if option.value == settings.font %}checked{% endif %}>
+          <!-- Each preview always shows its OWN pairing (see .font-preview-* in style.css),
+               no matter which font is active right now — same idea as the theme preview above. -->
+          <span class="font-preview font-preview-{{ option.value }}" aria-hidden="true">
+            <span class="font-preview-glyph">Aa</span>
+            <span class="font-preview-title">{{ option.label }}</span>
+            <span class="font-preview-sample">Memória RAM 16GB por R$ 929,99</span>
+          </span>
+          <span class="option-text">
+            <strong>{{ option.label }}</strong>
+            <span class="muted">{{ option.description }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <p class="hint">Mais cores em breve.</p>
+
+  <h2 class="settings-section-title">Animações</h2>
+
+  <div class="toggle-row">
+    <div class="toggle-text">
+      <label for="card-glow">Brilho nos cards</label>
+      <p class="hint" id="card-glow-hint">Uma luz suave segue o mouse ao passar sobre um produto. Não aparece em telas de toque nem com “reduzir movimento” ligado no sistema.</p>
+    </div>
+    {#- An unchecked checkbox sends nothing, so this hidden field sends "off" in that case. -#}
+    <input type="hidden" name="card_glow" value="off">
+    <input class="switch" type="checkbox" role="switch" id="card-glow" name="card_glow" value="on"
+           aria-describedby="card-glow-hint" data-preview-toggle="cardGlow"
+           {% if settings.card_glow == "on" %}checked{% endif %}>
+  </div>
+
+  <div class="toggle-row">
+    <div class="toggle-text">
+      <label for="category-animation">Animação das categorias</label>
+      <p class="hint" id="category-animation-hint">Ao abrir uma categoria, pontinhos formam o ícone dela no topo da página. Clique na faixa para repetir. Com “reduzir movimento” ligado, o ícone já aparece pronto.</p>
+    </div>
+    <input type="hidden" name="category_animation" value="off">
+    <input class="switch" type="checkbox" role="switch" id="category-animation" name="category_animation" value="on"
+           aria-describedby="category-animation-hint"
+           {% if settings.category_animation == "on" %}checked{% endif %}>
+  </div>
+
+  <div class="glow-demo" aria-hidden="true">
+    <div class="product-card">
+      <span class="product-card-image">{{ icon("package", 32) }}</span>
+      <span class="product-card-name">Passe o mouse aqui para testar</span>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="button">Salvar</button>
+  </div>
+</form>
+
+<section class="card capture-setup" id="capturar-preco" aria-labelledby="capture-setup-title">
+  <h2 id="capture-setup-title">Capturar preço do navegador</h2>
+  <p class="muted">
+    Para lojas que bloqueiam a leitura automática (Mercado Livre, Magazine Luiza). Você abre a página
+    da loja normalmente e o favorito envia para cá o preço que a página já está mostrando.
+  </p>
+  <ol class="capture-steps">
+    <li>Mostre a barra de favoritos do navegador (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>).</li>
+    <li><strong>Arraste</strong> o botão abaixo até a barra de favoritos.</li>
+    <li>Abra a página do produto na loja e clique no favorito <strong>Capturar preço</strong>.</li>
+    <li>Na aba que abrir, confira os dados e clique em <strong>Salvar preço</strong>.</li>
+  </ol>
+  <a class="button button-ghost bookmarklet" href="{{ bookmarklet_href }}" data-bookmarklet>
+    {{ icon("tag", 16) }}<span>Capturar preço</span>
+  </a>
+  <p class="hint">Nada é salvo sem a sua confirmação. O favorito só lê a página que você já tem aberta.</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Live preview: apply the choice the moment it's picked, before saving (works for both
+  // the theme and the font fieldset — each fieldset's data-preview says which data-*
+  // attribute on <html> it controls). Saving (the form submit) is what makes it stick.
+  document.querySelectorAll("fieldset[data-preview]").forEach(function (fieldset) {
+    var attribute = fieldset.dataset.preview;
+    fieldset.querySelectorAll('input[type="radio"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        document.documentElement.dataset[attribute] = input.value;
+      });
+    });
+  });
+  // The bookmarklet button is meant to be dragged; clicking it here would run it on this page.
+  document.querySelectorAll("[data-bookmarklet]").forEach(function (link) {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      window.alert("Arraste este botão para a barra de favoritos e use-o na página do produto na loja.");
+    });
+  });
+  // Same live preview for on/off switches (e.g. data-preview-toggle="cardGlow" -> data-card-glow).
+  document.querySelectorAll("input[data-preview-toggle]").forEach(function (input) {
+    input.addEventListener("change", function () {
+      document.documentElement.dataset[input.dataset.previewToggle] = input.checked ? "on" : "off";
+    });
+  });
+</script>
+{% endblock %}

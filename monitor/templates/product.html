@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}{{ product.name }} · Monitor de Preços{% endblock %}
+
+{% block content %}
+{% set best = product.best %}
+
+<nav class="breadcrumb" aria-label="Você está em">
+  <a href="{{ url_for('category_page', category_id=product.category_id) }}">{{ product.category_name }}</a>
+  {{ icon("chevron-right", 14) }}
+  <span aria-current="page">{{ product.name }}</span>
+</nav>
+
+<section class="card product-hero">
+  <div class="product-hero-image">
+    {% if product.image_url %}
+      <img src="{{ product.image_url }}" alt="Foto de {{ product.name }}">
+    {% else %}
+      {{ icon("package", 48) }}
+    {% endif %}
+  </div>
+
+  <div class="product-hero-info">
+    <h1>{{ product.name }}</h1>
+    <div class="chips">
+      <span class="chip">{{ product.category_name }}</span>
+      {% if product.manufacturer_code %}
+        <span class="chip chip-code" title="Código do fabricante ou EAN">{{ product.manufacturer_code }}</span>
+      {% else %}
+        <span class="chip chip-muted">sem código</span>
+      {% endif %}
+    </div>
+
+    <div class="best">
+      {% if best %}
+        <span class="eyebrow">Melhor preço</span>
+        <strong class="best-price">{{ best.price|brl }}</strong>
+        <span class="muted">na {{ best.store }}</span>
+      {% else %}
+        <span class="muted">Sem preço ainda</span>
+      {% endif %}
+    </div>
+
+    <div class="actions">
+      <form method="post" action="{{ url_for('check_product', product_id=product.id) }}" data-busy="Verificando…">
+        <button type="submit" class="button">{{ icon("refresh", 16) }}<span>Verificar preços agora</span></button>
+      </form>
+      <a class="button button-ghost" href="{{ url_for('edit_product', product_id=product.id) }}">{{ icon("pencil", 16) }}<span>Editar</span></a>
+      <form method="post" action="{{ url_for('delete_product', product_id=product.id) }}"
+            data-confirm="Remover “{{ product.name }}” e todo o histórico dele?">
+        <button type="submit" class="button button-ghost button-danger">{{ icon("trash", 16) }}<span>Excluir</span></button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="sources" aria-labelledby="sources-title">
+  <div class="section-head">
+    <h2 id="sources-title">Fontes e preços</h2>
+    <details class="add-source">
+      <summary class="button button-ghost button-small">{{ icon("plus", 16) }}<span>Adicionar fonte</span></summary>
+      <form method="post" action="{{ url_for('add_link', product_id=product.id) }}" class="add-source-form" data-busy="Adicionando…">
+        <label for="source-url">Link do mesmo produto em outra loja</label>
+        <div class="input-row">
+          <input id="source-url" name="url" type="url" placeholder="https://www.amazon.com.br/dp/..." required>
+          <button type="submit" class="button">Adicionar</button>
+        </div>
+        <p class="hint">Leitura automática: KaBuM!, Terabyte e Amazon. Mercado Livre e Magazine Luiza bloqueiam robôs: use o favorito <a href="{{ url_for('settings', _anchor='capturar-preco') }}">Capturar preço</a> ou “informar preço”.</p>
+      </form>
+    </details>
+  </div>
+
+  {% if product.offers %}
+    {% include "_offers.html" %}
+  {% else %}
+    <p class="muted">Nenhuma fonte ainda. Use “Adicionar fonte”.</p>
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="history-title">
+  <div class="section-head">
+    <h2 id="history-title">Variação de preço</h2>
+  </div>
+
+  {% if chart.labels|length >= 2 %}
+    <div class="chart-box">
+      <canvas id="price-chart" role="img"
+              aria-label="Gráfico de linhas com o preço de cada loja ao longo do tempo. Os valores estão na tabela abaixo."></canvas>
+    </div>
+    <script type="application/json" id="price-chart-data">{{ chart|tojson }}</script>
+  {% else %}
+    <p class="chart-empty muted">O gráfico aparece a partir de 2 verificações em horários diferentes. Volte mais tarde e clique em “Verificar preços agora”.</p>
+  {% endif %}
+
+  {% if chart.labels %}
+    <details class="data-table">
+      <summary>Ver dados em tabela</summary>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Data</th>
+              {% for series in chart.series %}<th scope="col">{{ series.store }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for label in chart.labels %}
+            {% set i = loop.index0 %}
+            <tr>
+              <th scope="row">{{ label }}</th>
+              {% for series in chart.series %}
+                <td>{{ series.prices[i]|brl if series.prices[i] is not none else "—" }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% endif %}
+</section>
+
+{% if similar %}
+<section class="similar" aria-labelledby="similar-title">
+  <h2 id="similar-title">Produtos parecidos na sua lista</h2>
+  <ul class="product-grid">
+    {% for p in similar %}
+      <li>{% include "_product_card.html" %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if chart.labels|length >= 2 %}
+  <script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/product-chart.js') }}"></script>
+{% endif %}
+{% endblock %}

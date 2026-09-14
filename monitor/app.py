@@ -1,0 +1,417 @@
+"""Web site (Flask). Run with: flask --app monitor.app run --debug
+
+Flask finds the create_app() function below by itself.
+"""
+
+import os
+from contextlib import closing
+from datetime import datetime
+from decimal import Decimal
+
+from flask import Flask, abort, flash, g, redirect, render_template, request, url_for
+
+from monitor import checker, compare, db, history
+from monitor.capture import bookmarklet_href, read_captured
+from monitor.fetcher import fetch_html
+from monitor.matching import code_matches
+from monitor.stores import link_key
+from monitor.icons import CATEGORY_ICONS, DEFAULT_CATEGORY_ICON
+from monitor.prices import format_brl, parse_brl_price
+from monitor.search import search_products
+from monitor.settings import (
+    CHOICES,
+    FONT_DESCRIPTIONS,
+    FONT_LABELS,
+    THEME_DESCRIPTIONS,
+    THEME_LABELS,
+    load_settings,
+    save_settings,
+)
+from monitor.similar import find_similar
+
+# One row per radio option on the settings page: value, label and short description.
+THEME_OPTIONS = [
+    {"value": value, "label": THEME_LABELS[value], "description": THEME_DESCRIPTIONS[value]}
+    for value in CHOICES["theme"]
+]
+FONT_OPTIONS = [
+    {"value": value, "label": FONT_LABELS[value], "description": FONT_DESCRIPTIONS[value]}
+    for value in CHOICES["font"]
+]
+
+
+def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
+    """Build the app. Tests pass a temporary database and a fake `fetch`."""
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-secret")
+    app.config["DB_PATH"] = db_path
+    fetch = fetch or fetch_html
+
+    with closing(db.connect(db_path)) as conn:  # closing() closes the connection at the end
+        db.init_db(conn)
+
+    def get_conn():
+        # One connection per request, closed at the end (teardown below).
+        if "conn" not in g:
+            g.conn = db.connect(app.config["DB_PATH"])
+        return g.conn
+
+    @app.teardown_appcontext
+    def close_conn(_error):
+        conn = g.pop("conn", None)
+        if conn is not None:
+            conn.close()
+
+    # ---------- Template helpers ----------
+
+    @app.context_processor
+    def sidebar_data():
+        """Variables available in every template (the sidebar needs them on all pages)."""
+        categories = db.list_categories_with_counts(get_conn())
+        return {
+            "categories": categories,
+            "total_products": sum(c["product_count"] for c in categories),
+            "settings": load_settings(get_conn()),
+            "category_icons": CATEGORY_ICONS,  # for the icon picker (sidebar and category page)
+        }
+
+    @app.template_filter("brl")
+    def brl_filter(value) -> str:
+        return format_brl(Decimal(str(value)))
+
+    @app.template_filter("when")
+    def when_filter(value: datetime) -> str:
+        return value.strftime("%d/%m às %H:%M")
+
+    # ---------- Product grid ----------
+
+    def render_grid(products, **context):
+        """The product grid (home, category, search), with each product's best price for the slider."""
+        prices = compare.best_prices(get_conn(), products)
+        return render_template(
+            "index.html",
+            products=products,
+            best_prices=prices,
+            price_range=compare.price_range(prices),
+            **context,
+        )
+
+    @app.get("/")
+    def index():
+        return render_grid(db.list_products(get_conn()), heading="Todos os produtos", category=None)
+
+    @app.get("/categories/<int:category_id>")
+    def category_page(category_id: int):
+        category = _get_or_404(db.get_category, category_id)
+        return render_grid(
+            db.list_products(get_conn(), category_id),
+            heading=category["name"],
+            category=category,
+            active_category_id=category_id,
+        )
+
+    @app.get("/search")
+    def search():
+        query = request.args.get("q", "").strip()
+        if not query:
+            return redirect(url_for("index"))
+        return render_grid(
+            search_products(get_conn(), query),
+            heading=f"Resultados para “{query}”",
+            category=None,
+            search_query=query,
+        )
+
+    # ---------- Categories ----------
+
+    @app.post("/categories")
+    def create_category():
+        try:
+            category_id = db.create_category(
+                get_conn(),
+                request.form.get("name", ""),
+                request.form.get("icon", DEFAULT_CATEGORY_ICON),
+            )
+        except ValueError as error:
+            flash(str(error), "error")
+            return redirect(url_for("index"))
+        flash("Categoria criada.", "ok")
+        return redirect(url_for("category_page", category_id=category_id))
+
+    @app.post("/categories/<int:category_id>/edit")
+    def edit_category(category_id: int):
+        _get_or_404(db.get_category, category_id)
+        try:
+            db.update_category(
+                get_conn(),
+                category_id,
+                name=request.form.get("name", ""),
+                icon=request.form.get("icon", DEFAULT_CATEGORY_ICON),
+            )
+        except ValueError as error:
+            flash(str(error), "error")
+        else:
+            flash("Categoria atualizada.", "ok")
+        return redirect(url_for("category_page", category_id=category_id))
+
+    @app.post("/categories/<int:category_id>/delete")
+    def delete_category(category_id: int):
+        category = _get_or_404(db.get_category, category_id)
+        try:
+            db.delete_category(get_conn(), category_id)
+        except ValueError as error:
+            flash(str(error), "error")
+            return redirect(url_for("category_page", category_id=category_id))
+        flash(f"Categoria “{category['name']}” excluída.", "ok")
+        return redirect(url_for("index"))
+
+    # ---------- Create / edit products ----------
+
+    @app.get("/products/new")
+    def new_product():
+        category_id = request.args.get("category", type=int)
+        # Fields can come pre-filled in the URL (used by "Cadastrar novo produto" on the capture page).
+        form = {
+            "category_id": category_id,
+            "name": request.args.get("name", ""),
+            "code": request.args.get("code", ""),
+            "links": request.args.get("links", ""),
+        }
+        return render_template("product_form.html", form=form, product=None, active_category_id=category_id)
+
+    @app.post("/products")
+    def create_product():
+        conn = get_conn()
+        form = request.form
+        category_id = form.get("category_id", type=int)
+
+        def form_again(status=400, **extra):
+            return render_template("product_form.html", form=form, product=None, **extra), status
+
+        duplicate = db.find_product_by_code(conn, form.get("code"))
+        if duplicate is not None:
+            return form_again(error="Você já cadastrou um produto com esse código.", duplicate=duplicate)
+
+        if form.get("name", "").strip() and not form.get("confirm"):
+            similar = find_similar(conn, form["name"], form.get("code"), category_id=category_id)
+            if similar:
+                return form_again(status=200, similar=similar)
+
+        try:
+            product_id = db.create_product(
+                conn,
+                name=form.get("name", ""),
+                category_id=category_id,
+                urls=form.get("links", "").splitlines(),
+                manufacturer_code=form.get("code"),
+            )
+        except ValueError as error:
+            return form_again(error=str(error))
+
+        _flash_results(checker.check_product(conn, product_id, fetch=fetch))
+        return redirect(url_for("product_page", product_id=product_id))
+
+    @app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
+    def edit_product(product_id: int):
+        conn = get_conn()
+        product = _get_or_404(db.get_product, product_id)
+
+        if request.method == "GET":
+            form = {"name": product["name"], "code": product["manufacturer_code"] or "", "category_id": product["category_id"]}
+            return render_template(
+                "product_form.html", form=form, product=product, active_category_id=product["category_id"]
+            )
+
+        form = request.form
+        duplicate = db.find_product_by_code(conn, form.get("code"), exclude_id=product_id)
+        if duplicate is not None:
+            return render_template(
+                "product_form.html", form=form, product=product,
+                error="Outro produto já usa esse código.", duplicate=duplicate,
+            ), 400
+        try:
+            db.update_product(
+                conn,
+                product_id,
+                name=form.get("name", ""),
+                category_id=form.get("category_id", type=int),
+                manufacturer_code=form.get("code"),
+            )
+        except ValueError as error:
+            return render_template("product_form.html", form=form, product=product, error=str(error)), 400
+
+        flash("Produto atualizado.", "ok")
+        return redirect(url_for("product_page", product_id=product_id))
+
+    # ---------- Product page ----------
+
+    @app.get("/products/<int:product_id>")
+    def product_page(product_id: int):
+        conn = get_conn()
+        product = _get_or_404(db.get_product, product_id)
+        return render_template(
+            "product.html",
+            product=compare.compare_product(conn, product),
+            similar=find_similar(
+                conn, product["name"], product["manufacturer_code"],
+                category_id=product["category_id"], exclude_id=product_id,
+            ),
+            chart=history.chart_data(db.price_history(conn, product_id)),
+            active_category_id=product["category_id"],
+        )
+
+    @app.post("/products/<int:product_id>/check")
+    def check_product(product_id: int):
+        _get_or_404(db.get_product, product_id)
+        _flash_results(checker.check_product(get_conn(), product_id, fetch=fetch))
+        return redirect(url_for("product_page", product_id=product_id))
+
+    @app.post("/products/<int:product_id>/delete")
+    def delete_product(product_id: int):
+        product = _get_or_404(db.get_product, product_id)
+        db.delete_product(get_conn(), product_id)
+        flash(f"“{product['name']}” foi removido.", "ok")
+        return redirect(url_for("category_page", category_id=product["category_id"]))
+
+    # ---------- Sources (links) ----------
+
+    @app.post("/products/<int:product_id>/links")
+    def add_link(product_id: int):
+        conn = get_conn()
+        _get_or_404(db.get_product, product_id)
+        try:
+            link_id = db.add_link(conn, product_id, request.form.get("url", ""))
+        except ValueError as error:
+            flash(str(error), "error")
+        else:
+            _flash_results([checker.check_link(conn, link_id, fetch=fetch)])
+        return redirect(url_for("product_page", product_id=product_id, _anchor="sources"))
+
+    @app.post("/links/<int:link_id>/delete")
+    def delete_link(link_id: int):
+        link = _get_or_404(db.get_link, link_id)
+        db.delete_link(get_conn(), link_id)
+        flash(f"Fonte {link['store']} removida.", "ok")
+        return redirect(url_for("product_page", product_id=link["product_id"], _anchor="sources"))
+
+    @app.post("/links/<int:link_id>/manual-price")
+    def manual_price(link_id: int):
+        conn = get_conn()
+        link = _get_or_404(db.get_link, link_id)
+        try:
+            price = parse_brl_price(request.form.get("price", ""))
+        except ValueError:
+            flash("Preço inválido. Use o formato 1.299,90.", "error")
+        else:
+            db.add_price_check(conn, link_id, source="manual", price=price)
+            flash(f"Preço da {link['store']} salvo: {format_brl(price)}.", "ok")
+        return redirect(url_for("product_page", product_id=link["product_id"], _anchor="sources"))
+
+    # ---------- "Capturar preço" bookmarklet ----------
+
+    @app.get("/capture")
+    def capture_page():
+        """Shows what the bookmarklet read from the store page. Saves nothing (GET)."""
+        return render_capture(request.args)
+
+    @app.post("/capture")
+    def save_capture():
+        conn = get_conn()
+        form = request.form
+        try:
+            page = read_captured(form)
+        except ValueError as error:
+            return render_capture(form, error=str(error))
+        try:
+            price = parse_brl_price(form.get("price", ""))
+        except ValueError:
+            return render_capture(form, error="Informe um preço válido, como 929,99.")
+
+        link = db.get_link(conn, form.get("link_id", type=int) or 0)
+        if link is not None:
+            # The chosen link must really be the page that was captured.
+            if link_key(link["url"]) != link_key(page.url):
+                return render_capture(form, error="Esse link não corresponde à página capturada.")
+            link_id = link["id"]
+        else:
+            product = db.get_product(conn, form.get("product_id", type=int) or 0)
+            if product is None:
+                return render_capture(form, error="Escolha o produto a que essa página pertence.")
+            # Reuse the product's link to this page if it already has one (maybe written differently).
+            same_page = [row for row in db.find_links_for_url(conn, page.url) if row["product_id"] == product["id"]]
+            link_id = same_page[0]["id"] if same_page else db.add_link(conn, product["id"], page.url)
+            link = db.get_link(conn, link_id)
+
+        db.add_price_check(
+            conn, link_id, source="capture", price=price,
+            page_title=page.name or None, page_code=page.mpn, page_gtin=page.gtin,
+        )
+        if page.image_url:
+            db.set_image_if_missing(conn, link["product_id"], page.image_url)
+        flash(f"Preço da {link['store']} capturado: {format_brl(price)}.", "ok")
+        return redirect(url_for("product_page", product_id=link["product_id"], _anchor="sources"))
+
+    def render_capture(values, error=None):
+        conn = get_conn()
+        try:
+            page = read_captured(values)
+        except ValueError:
+            return render_template(
+                "capture.html", page=None, error="O favorito não enviou um link de produto válido."
+            ), 400
+        matches = [
+            {"link": link, "code_matches": code_matches(link["manufacturer_code"], page.mpn, page.gtin, page.name)}
+            for link in db.find_links_for_url(conn, page.url)
+        ]
+        return render_template(
+            "capture.html",
+            page=page,
+            matches=matches,
+            products=db.list_products(conn),
+            typed_price=values.get("price", ""),
+            error=error,
+        ), 400 if error else 200
+
+    # ---------- Settings ----------
+
+    @app.route("/settings", methods=["GET", "POST"])
+    def settings():
+        conn = get_conn()
+        if request.method == "POST":
+            # Only keys actually present in the form are saved, so a form that only has
+            # a "theme" field (or a future page missing a "font" field) never wipes the
+            # other setting's saved value.
+            # On/off switches send a hidden "off" first and the checkbox's "on" after it
+            # (an unchecked checkbox sends nothing), so the LAST value of each key wins.
+            values = {key: request.form.getlist(key)[-1] for key in CHOICES if key in request.form}
+            try:
+                save_settings(conn, values)
+            except ValueError as error:
+                return render_settings(error=str(error)), 400
+            flash("Configurações salvas.", "ok")
+            return redirect(url_for("settings"))
+        return render_settings()
+
+    def render_settings(**context):
+        return render_template(
+            "settings.html",
+            theme_options=THEME_OPTIONS,
+            font_options=FONT_OPTIONS,
+            # The bookmarklet must point back to this site, wherever it is running.
+            bookmarklet_href=bookmarklet_href(request.url_root),
+            **context,
+        )
+
+    # ---------- Helpers ----------
+
+    def _get_or_404(getter, item_id: int):
+        item = getter(get_conn(), item_id)
+        if item is None:
+            abort(404)
+        return item
+
+    def _flash_results(results) -> None:
+        for result in results:
+            flash(f"{result.store}: {result.message}", "ok" if result.ok else "error")
+
+    return app

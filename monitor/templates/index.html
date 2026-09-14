@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_icon_picker.html" import icon_picker %}
+
+{#- Top level (outside blocks) so both the "content" and "scripts" blocks can see it. -#}
+{% set show_dot_banner = settings.category_animation == "on" and not search_query %}
+
+{% block title %}{{ heading }} · Monitor de Preços{% endblock %}
+
+{% block content %}
+{% if show_dot_banner %}
+  {#- Dots grow into the category icon (static/js/dot-transition.js). Decorative only. -#}
+  <div class="dot-banner" data-dot-banner aria-hidden="true" title="Clique para repetir a animação">
+    <canvas></canvas>
+    <template>{{ icon(category.icon if category else "grid", 100) }}</template>
+  </div>
+{% endif %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ heading }}</h1>
+    <p class="muted">{{ products|length }} {{ "produto" if products|length == 1 else "produtos" }}</p>
+  </div>
+
+  {% if category %}
+  <div class="page-actions">
+    <details class="edit-category">
+      <summary class="button button-ghost button-small">{{ icon("pencil", 16) }}<span>Editar</span></summary>
+      <form method="post" action="{{ url_for('edit_category', category_id=category.id) }}" class="edit-category-form">
+        <label for="category-name">Nome da categoria</label>
+        <input id="category-name" name="name" value="{{ category.name }}" maxlength="40" required>
+        {{ icon_picker("edit-category", category.icon, category_icons) }}
+        <button type="submit" class="button button-small">Salvar</button>
+      </form>
+    </details>
+    <form method="post" action="{{ url_for('delete_category', category_id=category.id) }}"
+          data-confirm="Excluir a categoria “{{ category.name }}”?">
+      <button type="submit" class="button button-ghost button-small button-danger">{{ icon("trash", 16) }}<span>Excluir</span></button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% if products %}
+  {% if price_range %}
+    {#- Filters the grid below by each product's best price (static/js/price-filter.js). -#}
+    <div class="price-filter" data-price-filter>
+      <div class="price-filter-head">
+        <label for="price-limit">Preço até</label>
+        <output class="price-filter-value" id="price-limit-value" for="price-limit">Qualquer preço</output>
+      </div>
+      <input class="price-range" type="range" id="price-limit"
+             min="{{ price_range[0] }}" max="{{ price_range[1] }}" step="1" value="{{ price_range[1] }}"
+             aria-describedby="price-limit-count">
+      <div class="price-filter-scale" aria-hidden="true">
+        <span>{{ price_range[0]|brl }}</span><span>{{ price_range[1]|brl }}</span>
+      </div>
+      <p class="price-filter-count" id="price-limit-count" aria-live="polite">
+        Mostrando {{ products|length }} de {{ products|length }}
+      </p>
+    </div>
+  {% endif %}
+
+  <ul class="product-grid">
+    {% for p in products %}
+      {% set price = best_prices.get(p.id) %}
+      <li{% if price is not none %} data-price="{{ price }}"{% endif %}>{% include "_product_card.html" %}</li>
+    {% endfor %}
+  </ul>
+  <p class="price-filter-empty" hidden>Nenhum produto com melhor preço até esse valor. Arraste o controle para a direita.</p>
+{% elif search_query %}
+  <div class="empty">
+    {{ icon("search", 40) }}
+    <p><strong>Nenhum produto encontrado.</strong></p>
+    <p class="muted">Tente outra palavra, parte do nome ("king") ou o código do produto.</p>
+    <a class="button button-ghost" href="{{ url_for('index') }}">Ver todos os produtos</a>
+  </div>
+{% else %}
+  <div class="empty">
+    {{ icon("package", 40) }}
+    <p><strong>Nenhum produto {{ "nesta categoria" if category else "ainda" }}.</strong></p>
+    <p class="muted">Cadastre um produto com o link dele em cada loja para comparar os preços.</p>
+    <a class="button" href="{{ url_for('new_product', category=category.id if category else none) }}">
+      {{ icon("plus") }}<span>Adicionar produto{{ " nesta categoria" if category }}</span>
+    </a>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if show_dot_banner %}
+  <script src="{{ url_for('static', filename='js/dot-transition.js') }}"></script>
+{% endif %}
+{% if products and price_range %}
+  <script src="{{ url_for('static', filename='js/price-filter.js') }}"></script>
+{% endif %}
+{% endblock %}

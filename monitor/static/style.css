@@ -1,0 +1,920 @@
+/* =====================================================================
+   Monitor de Preços · minimal style: grid, white space, one accent color
+   ===================================================================== */
+
+/* ---------- Tokens ---------- */
+:root {
+  color-scheme: light;  /* native controls (scrollbar, select...) follow the theme too */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-hover: #f0f2f5;
+  --border: #e3e6ea;
+  --border-strong: #c9cfd6;
+  --text: #1b1f24;
+  --muted: #5d6572;          /* 5.9:1 on white */
+  --accent: #0f7a5c;         /* 5.4:1 on white */
+  --accent-hover: #0b634a;
+  --accent-soft: #e2f3ec;
+  --on-accent: #ffffff;
+  --bar: #cdd3da;
+  --warn: #875600;
+  --warn-soft: #fcf1da;
+  --error: #b3261e;
+  --error-soft: #fbe9e7;
+  --photo-bg: #ffffff;       /* store photos have white backgrounds */
+
+  /* Chart lines (each also gets its own dash style) */
+  --series-1: #0f7a5c;
+  --series-2: #3056d3;
+  --series-3: #c2410c;
+  --series-4: #7c3aed;
+  --series-5: #0e7490;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
+  --topbar-height: 60px;
+  --sidebar-width: 232px;
+  --speed: 150ms;
+
+  /* Font pairing (Configurações → Fonte). --font-heading/--font-body/--heading-weight
+     change with data-font below; the system stack is always the fallback, so a font
+     file that fails to load (or the "default" option, which references no custom
+     family at all) still looks fine. */
+  --font-system: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: var(--font-system);
+  --font-heading: var(--font-system);
+  --heading-weight: 700;
+  --font-body-size: 16px;
+}
+
+/* Dark tokens apply in two situations: the theme is explicitly "dark", or the theme is
+   "auto" and the OS prefers dark. The two blocks below MUST stay identical (the test in
+   tests/test_css.py checks this) — an option chosen in Configurações must look exactly
+   like the OS choosing dark on its own. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111317;
+  --surface: #1a1d22;
+  --surface-hover: #22262c;
+  --border: #2b3037;
+  --border-strong: #3d434c;
+  --text: #e8eaed;
+  --muted: #a0a8b3;
+  --accent: #3fbf93;
+  --accent-hover: #5fd1a9;
+  --accent-soft: #163128;
+  --on-accent: #0b1f18;
+  --bar: #3a404a;
+  --warn: #e5b566;
+  --warn-soft: #33291a;
+  --error: #f08b83;
+  --error-soft: #3a1f1d;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+
+  --series-1: #3fbf93;
+  --series-2: #7f9cf5;
+  --series-3: #f59e5b;
+  --series-4: #b69cf7;
+  --series-5: #4fc3d9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    color-scheme: dark;
+    --bg: #111317;
+    --surface: #1a1d22;
+    --surface-hover: #22262c;
+    --border: #2b3037;
+    --border-strong: #3d434c;
+    --text: #e8eaed;
+    --muted: #a0a8b3;
+    --accent: #3fbf93;
+    --accent-hover: #5fd1a9;
+    --accent-soft: #163128;
+    --on-accent: #0b1f18;
+    --bar: #3a404a;
+    --warn: #e5b566;
+    --warn-soft: #33291a;
+    --error: #f08b83;
+    --error-soft: #3a1f1d;
+    --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+
+    --series-1: #3fbf93;
+    --series-2: #7f9cf5;
+    --series-3: #f59e5b;
+    --series-4: #b69cf7;
+    --series-5: #4fc3d9;
+  }
+}
+
+/* ---------- Fonts (self-hosted; SIL Open Font License 1.1 — see static/fonts/LICENSES.md) ----------
+   Latin subset only (covers Portuguese accents). A browser only downloads a font file
+   when some element actually uses it, so picking "Padrão" never downloads any of these. */
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("fonts/nunito-sans-latin-variable.woff2") format("woff2");
+  font-weight: 200 1000;  /* variable font: one file covers every weight in this range */
+  font-style: normal;
+  font-display: swap;     /* show text in the fallback font immediately, swap in once loaded */
+}
+@font-face {
+  font-family: "Oswald";
+  src: url("fonts/oswald-latin-variable.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Bowlby One";
+  src: url("fonts/bowlby-one-latin-400.woff2") format("woff2");
+  font-weight: 400;       /* this family only ships weight 400 */
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Indie Flower";
+  src: url("fonts/indie-flower-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root[data-font="nunito-bowlby"] {
+  --font-heading: "Bowlby One", var(--font-system);
+  --font-body: "Nunito Sans", var(--font-system);
+  --heading-weight: 400;  /* no bold weight in Bowlby One; faking it would look blurry */
+}
+
+:root[data-font="oswald-indie"] {
+  --font-heading: "Oswald", var(--font-system);
+  --font-body: "Indie Flower", var(--font-system);
+  --font-body-size: 17px; /* Indie Flower reads small at 16px */
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--font-body-size);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+h1, h2, p { margin: 0; }
+h1, h2, .brand { font-family: var(--font-heading); font-weight: var(--heading-weight); }
+h1 { font-size: 1.6rem; line-height: 1.25; letter-spacing: -0.01em; }
+h2 { font-size: 1.1rem; line-height: 1.3; }
+img { max-width: 100%; }
+.muted { color: var(--muted); }
+.icon { flex-shrink: 0; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute; left: var(--space-4); top: -100px; z-index: 100;
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--on-accent);
+}
+.skip-link:focus { top: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* ---------- Top bar + layout ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  height: var(--topbar-height);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+  padding: 0 clamp(var(--space-4), 3vw, var(--space-5));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.brand { text-decoration: none; letter-spacing: -0.01em; white-space: nowrap; }
+.brand::before {
+  content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 10px;
+  border-radius: 50%; background: var(--accent); vertical-align: 1px;
+}
+
+/* ---------- Search bar ---------- */
+.search {
+  position: relative;
+  flex: 1;
+  max-width: 520px;
+  display: flex; align-items: center;
+}
+.search-icon {
+  position: absolute; left: 14px;
+  display: flex;
+  color: var(--muted);
+  pointer-events: none;
+  transition: color var(--speed) ease;
+}
+.search:focus-within .search-icon { color: var(--accent); }
+
+.search input {
+  min-height: 42px;
+  padding: 0 44px 0 42px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--bg);
+  transition: border-color var(--speed) ease, background-color var(--speed) ease, box-shadow var(--speed) ease;
+}
+.search input::placeholder { color: var(--muted); }
+.search input::-webkit-search-cancel-button { display: none; }  /* we have our own "×" */
+.search input:hover { border-color: var(--border-strong); }
+.search input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);  /* focus ring */
+}
+
+.search-clear {
+  position: absolute; right: 6px;
+  display: none; place-items: center;
+  width: 32px; height: 32px;
+  border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted);
+  cursor: pointer;
+  transition: background-color var(--speed) ease, color var(--speed) ease;
+}
+.search-clear:hover { background: var(--surface-hover); color: var(--text); }
+
+.search-key {
+  position: absolute; right: 12px;
+  padding: 0 7px;
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  font: 0.75rem/1.6 ui-monospace, "Cascadia Code", Consolas, monospace;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* With text typed: show "×" and hide the "/" hint. While focused: hide the hint too. */
+.search input:not(:placeholder-shown) ~ .search-clear { display: grid; }
+.search input:not(:placeholder-shown) ~ .search-key,
+.search input:focus ~ .search-key { display: none; }
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.sidebar {
+  position: sticky; top: var(--topbar-height);
+  height: calc(100vh - var(--topbar-height));
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-3);
+  border-right: 1px solid var(--border);
+}
+.sidebar-title {
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nav-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text); text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--speed) ease, color var(--speed) ease;
+}
+.nav-item .icon { color: var(--muted); transition: color var(--speed) ease; }
+.nav-item:hover { background: var(--surface-hover); }
+.nav-item[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.nav-item[aria-current="page"] .icon { color: var(--accent); }
+.nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-count { margin-left: auto; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nav-item-muted { color: var(--muted); }
+
+.new-category { margin-top: var(--space-2); }
+.new-category summary { list-style: none; }
+.new-category summary::-webkit-details-marker { display: none; }
+.new-category-form { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3) 0; }
+
+/* ---------- Icon picker (create / edit category) ---------- */
+.icon-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
+.icon-picker legend { margin-bottom: 6px; padding: 0; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+
+.icon-picker-grid {
+  position: relative;  /* keeps the visually hidden radios inside the picker */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: var(--space-1);
+}
+
+.icon-picker label {
+  display: grid; place-items: center;
+  height: 36px;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color var(--speed) ease, color var(--speed) ease, border-color var(--speed) ease;
+}
+.icon-picker label:hover { background: var(--surface-hover); color: var(--text); }
+/* The radio itself is hidden, so its label shows the state: chosen and keyboard focus. */
+.icon-picker input:checked + label { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.icon-picker input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.edit-category-form {
+  display: grid; gap: var(--space-2);
+  width: min(320px, 100%);
+  margin-top: var(--space-2); padding: var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.edit-category-form > label { font-size: 0.9rem; font-weight: 600; }
+.edit-category-form .button { justify-self: end; }
+
+.sidebar-footer { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+
+.content { min-width: 0; padding: var(--space-6) clamp(var(--space-4), 4vw, 40px) 64px; }
+
+/* ---------- Buttons ---------- */
+.button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 44px; padding: 0 var(--space-4);
+  border: 1px solid var(--accent); border-radius: 10px;
+  background: var(--accent); color: var(--on-accent);
+  font: inherit; font-weight: 600; text-decoration: none; white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--speed) ease, border-color var(--speed) ease, color var(--speed) ease;
+}
+.button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.button:disabled { opacity: 0.6; cursor: wait; }
+.button-ghost { background: transparent; color: var(--accent); border-color: var(--border-strong); }
+.button-ghost:hover { background: var(--surface-hover); border-color: var(--accent); }
+.button-small { min-height: 36px; padding: 0 var(--space-3); font-size: 0.9rem; }
+.button-danger { color: var(--error); }
+.button-danger:hover { border-color: var(--error); }
+
+.link-button {
+  background: none; border: 0; padding: 0;
+  color: var(--muted); font: inherit; text-decoration: underline; cursor: pointer;
+}
+.link-button:hover { color: var(--text); }
+
+details > summary { cursor: pointer; }
+details > summary.button { list-style: none; }
+details > summary.button::-webkit-details-marker { display: none; }
+
+/* ---------- Messages ---------- */
+.flashes { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: grid; gap: var(--space-2); }
+.flash { padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); }
+.flash-error { background: var(--error-soft); color: var(--error); }
+.flash a { color: inherit; font-weight: 600; }
+
+/* ---------- Page header ---------- */
+.page-head {
+  display: flex; flex-wrap: wrap; gap: var(--space-4);
+  align-items: flex-end; justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+.page-head p { margin-top: var(--space-1); }
+.page-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2); }
+.inline-form { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+.inline-form input { width: 180px; min-height: 36px; padding: 4px 10px; }
+
+.empty {
+  display: grid; justify-items: center; gap: var(--space-2);
+  padding: var(--space-7) var(--space-5); text-align: center;
+  border: 1px dashed var(--border-strong); border-radius: var(--radius);
+  color: var(--muted);
+}
+.empty strong { color: var(--text); }
+.empty .button { margin-top: var(--space-3); }
+
+/* ---------- Product grid (small cards: photo + name) ---------- */
+.product-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--space-4);
+}
+
+.product-card {
+  display: flex; flex-direction: column; height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+  color: var(--text); text-decoration: none;
+  transition: border-color var(--speed) ease, box-shadow var(--speed) ease, transform var(--speed) ease;
+}
+.product-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); transform: translateY(-2px); }
+.product-card:focus-visible { outline-offset: 3px; border-radius: var(--radius); }
+
+.product-card-image {
+  display: grid; place-items: center;
+  aspect-ratio: 1;               /* reserves space: no layout jump while the photo loads */
+  padding: var(--space-3);
+  background: var(--photo-bg);
+  border-bottom: 1px solid var(--border);
+  color: #9aa2ad;
+}
+.product-card-image img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Name limited to 2 lines. Margin (not padding) so the 3rd line can't peek into the padding. */
+.product-card-name {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden;
+  height: calc(2 * 1.35em);
+  margin: var(--space-3);
+  font-size: 0.9rem; line-height: 1.35; font-weight: 500;
+}
+
+/* ---------- Card glow (Configurações → Animações) ----------
+   A soft light that follows the mouse. Idea from the "spotlight card" component
+   (21st.dev/@jahed), made much subtler. static/js/card-glow.js sets --glow-x/--glow-y.
+   Two layers: ::before is a thin lit ring on the card's edge, ::after a faint light inside. */
+.product-card { position: relative; }  /* the two layers are positioned against the card */
+
+.product-card::before,
+.product-card::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none;  /* the light must never block clicks on the card */
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.product-card::before {
+  z-index: 2;
+  padding: 1px;  /* ring thickness */
+  background: radial-gradient(160px circle at var(--glow-x, 50%) var(--glow-y, 50%),
+                              color-mix(in srgb, var(--accent) 70%, transparent), transparent 70%);
+  /* Mask trick: paint the whole box, then cut out the content area, leaving only the 1px ring. */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.product-card::after {
+  z-index: 1;
+  background: radial-gradient(220px circle at var(--glow-x, 50%) var(--glow-y, 50%),
+                              color-mix(in srgb, var(--accent) 7%, transparent), transparent 65%);
+}
+
+/* Only with a mouse, only when turned on, never with "reduce motion". */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root[data-card-glow="on"] .product-card:hover::before,
+  :root[data-card-glow="on"] .product-card:hover::after { opacity: 1; }
+}
+
+/* ---------- Price filter slider (static/js/price-filter.js) ---------- */
+.price-filter {
+  display: grid; gap: var(--space-1);
+  max-width: 480px;
+  margin-bottom: var(--space-5); padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+.price-filter-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.price-filter-head label { font-weight: 600; }
+.price-filter-value { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.price-filter-scale { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.price-filter-count { font-size: 0.85rem; color: var(--muted); }
+.price-filter-empty { padding: var(--space-5); text-align: center; color: var(--muted); border: 1px dashed var(--border-strong); border-radius: var(--radius); }
+.product-grid > li[hidden] { display: none; }
+
+/* Range input restyled. Each browser names the parts differently: WebKit/Blink (Chrome, Edge)
+   use ::-webkit-slider-*, Firefox uses ::-moz-range-*. --fill is set by the JS. */
+.price-range {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 32px; min-height: 0;
+  padding: 0; border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.price-range:focus-visible { outline: none; }  /* the thumb shows the focus ring instead */
+
+.price-range::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 99px;
+  background: linear-gradient(to right, var(--accent) var(--fill, 100%), var(--border) var(--fill, 100%));
+}
+.price-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px; margin-top: -7px;  /* centers the thumb on the 6px track */
+  border: 2px solid var(--accent); border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: box-shadow var(--speed) ease;
+}
+.price-range:hover::-webkit-slider-thumb,
+.price-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 5px var(--accent-soft); }
+
+.price-range::-moz-range-track { height: 6px; border-radius: 99px; background: var(--border); }
+.price-range::-moz-range-progress { height: 6px; border-radius: 99px; background: var(--accent); }
+.price-range::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border: 2px solid var(--accent); border-radius: 50%;
+  background: var(--surface);
+}
+.price-range:hover::-moz-range-thumb,
+.price-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 5px var(--accent-soft); }
+
+/* ---------- Dot banner (category pages, static/js/dot-transition.js) ---------- */
+.dot-banner {
+  height: 120px;
+  margin-bottom: var(--space-5);
+  overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+.dot-banner canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+/* ---------- Cards & sections ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.section-head {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+/* ---------- Product page ---------- */
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+  font-size: 0.9rem; color: var(--muted);
+}
+.breadcrumb a { text-decoration: none; }
+.breadcrumb a:hover { color: var(--text); text-decoration: underline; }
+.breadcrumb [aria-current] { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60ch; }
+
+.product-hero { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+
+.product-hero-image {
+  display: grid; place-items: center;
+  aspect-ratio: 1;
+  padding: var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--photo-bg); color: #9aa2ad;
+}
+.product-hero-image img { width: 100%; height: 100%; object-fit: contain; }
+
+.product-hero-info { display: grid; gap: var(--space-3); align-content: start; }
+.product-hero-info h1 { font-size: 1.45rem; }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip {
+  padding: 2px 10px; border-radius: 99px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-size: 0.8rem; color: var(--muted);
+}
+.chip-code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+.chip-muted { border-style: dashed; }
+
+.best { display: grid; gap: 2px; padding: var(--space-2) 0; }
+.eyebrow { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.best-price { font-size: 2rem; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Add source */
+.add-source[open] { flex-basis: 100%; }
+.add-source-form { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding: var(--space-4); border-radius: var(--radius-sm); background: var(--bg); }
+.add-source-form label { font-weight: 600; }
+.input-row { display: flex; gap: var(--space-2); }
+.input-row input { flex: 1; min-width: 0; }
+
+/* Price per store (bars) */
+.offers { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+
+.offer {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 130px;
+  grid-template-areas: "store bar price" "meta meta meta";
+  column-gap: var(--space-4); row-gap: var(--space-1);
+  align-items: center;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.offer-store { grid-area: store; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; text-decoration: none; }
+.offer-store .icon { color: var(--muted); }
+.offer-store:hover { text-decoration: underline; }
+
+.offer-bar { grid-area: bar; height: 10px; border-radius: 99px; background: var(--bg); overflow: hidden; }
+.offer-bar span { display: block; height: 100%; border-radius: 99px; background: var(--bar); }
+.is-best .offer-bar span { background: var(--accent); }
+
+.offer-price { grid-area: price; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.offer-price small { display: block; color: var(--muted); font-weight: 400; }
+.is-best .offer-price { color: var(--accent); }
+
+.offer-meta { grid-area: meta; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 0.85rem; }
+.offer-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-left: auto; }
+
+.badge { padding: 1px 8px; border-radius: var(--radius-sm); font-size: 0.8rem; }
+.badge-best { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.badge-warn { background: var(--warn-soft); color: var(--warn); }
+.badge-error { background: var(--error-soft); color: var(--error); }
+
+.manual summary { color: var(--muted); text-decoration: underline; }
+.manual summary:hover { color: var(--text); }
+.manual .inline-form input { width: 120px; }
+
+/* Chart */
+.chart-box { position: relative; height: 300px; }
+.chart-empty { padding: var(--space-5); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
+
+.data-table { margin-top: var(--space-4); }
+.data-table summary { color: var(--muted); font-size: 0.9rem; }
+.table-scroll { overflow-x: auto; margin-top: var(--space-3); }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+th, td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+th:first-child { text-align: left; }
+thead th { color: var(--muted); font-weight: 600; }
+
+/* Similar products */
+.similar h2 { margin-bottom: var(--space-3); }
+
+/* ---------- Forms ---------- */
+input, textarea, select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--surface); color: var(--text);
+  font: inherit;
+}
+textarea { resize: vertical; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+
+.form { display: grid; gap: 6px; max-width: 720px; }
+.form label { margin-top: var(--space-3); font-weight: 600; }
+.form label:first-of-type { margin-top: 0; }
+.optional { color: var(--muted); font-weight: 400; }
+.hint { font-size: 0.85rem; color: var(--muted); }
+.form-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-4); margin-top: var(--space-4); }
+
+.similar-warning {
+  display: grid; gap: var(--space-2);
+  margin-bottom: var(--space-3); padding: var(--space-4);
+  border-left: 3px solid var(--warn); border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+}
+.similar-warning ul { margin: 0; padding-left: 1.2em; }
+.similar-warning a { font-weight: 600; }
+
+/* ---------- Settings page ----------
+   Theme and font share the same radio-card layout (one fieldset each): a small
+   preview, generalized as .option-card / .option-grid so both fieldsets reuse it. */
+.settings-fieldset { margin-top: var(--space-4); border: 0; padding: 0; }
+.settings-section-title { margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--border); }
+
+/* On/off row: text on the left, switch on the right. */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+.toggle-text { display: grid; gap: 2px; }
+.form .toggle-text label { margin-top: 0; }
+
+/* Switch: a normal checkbox restyled (still a real checkbox for keyboard and screen readers). */
+.switch {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex-shrink: 0;
+  width: 44px; height: 24px; min-height: 0;
+  padding: 0; border: 0; border-radius: 99px;
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background-color var(--speed) ease;
+}
+.switch::before {
+  content: "";
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform var(--speed) ease;
+}
+.switch:checked { background: var(--accent); }
+.switch:checked::before { transform: translateX(20px); }
+.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.glow-demo { width: 170px; margin-top: var(--space-3); }
+
+/* ---------- "Capturar preço" bookmarklet (settings section + capture page) ---------- */
+.capture-setup { display: grid; gap: var(--space-3); max-width: 720px; }
+.capture-steps { margin: 0; padding-left: 1.3em; display: grid; gap: var(--space-1); }
+.bookmarklet { justify-self: start; cursor: grab; }
+kbd {
+  padding: 0 6px;
+  border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px;
+  font: 0.8rem/1.6 ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.capture-page { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.capture-image {
+  display: grid; place-items: center;
+  aspect-ratio: 1; padding: var(--space-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--photo-bg); color: #9aa2ad;
+}
+.capture-image img { width: 100%; height: 100%; object-fit: contain; }
+.capture-info { display: grid; gap: var(--space-2); min-width: 0; }
+.capture-url { font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
+
+.capture-choice { margin: var(--space-3) 0 0; padding: 0; border: 0; display: grid; gap: var(--space-2); }
+.capture-choice legend { margin-bottom: var(--space-2); padding: 0; font-weight: 600; }
+.form .capture-option {
+  display: flex; align-items: center; gap: var(--space-3);
+  margin-top: 0; padding: var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-weight: 400; cursor: pointer;
+}
+.form .capture-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.capture-option input { width: auto; min-height: 0; accent-color: var(--accent); }
+
+@media (max-width: 767px) {
+  .capture-page { grid-template-columns: minmax(0, 1fr); }
+  .capture-image { max-width: 140px; }
+}
+.settings-fieldset legend { padding: 0; margin-bottom: var(--space-2); font-size: 1rem; font-weight: 650; }
+
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+/* The whole card is the <label>; the radio itself stays visible and focusable
+   (no display:none), so keyboard/screen-reader users get the normal radio behavior.
+   grid-template-areas lays it out: radio in the top-right corner, preview below it
+   (full width), label text at the bottom. */
+.form .option-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: ". radio" "preview preview" "text text";
+  gap: var(--space-2);
+  margin-top: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 400;
+  cursor: pointer;
+  transition: border-color var(--speed) ease, background-color var(--speed) ease;
+}
+.option-card:hover { border-color: var(--border-strong); }
+.option-card:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.option-card input[type="radio"] {
+  grid-area: radio;
+  width: 20px; height: 20px; min-height: 0; padding: 0;
+  accent-color: var(--accent);
+}
+
+.option-text { grid-area: text; display: grid; gap: 2px; }
+.option-text .muted { font-size: 0.85rem; }
+
+.theme-preview {
+  grid-area: preview;
+  display: block;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.theme-preview-bar { display: block; height: 16px; }
+.theme-preview-line { display: block; height: 6px; margin: 8px 10px 0; border-radius: 99px; }
+.theme-preview-line.short { width: 55%; }
+
+/* Fixed colors on purpose: the preview must always show what light/dark look like,
+   no matter which theme is active right now. */
+.theme-preview-light { background: #f6f7f9; }
+.theme-preview-light .theme-preview-bar { background: #ffffff; border-bottom: 1px solid #e3e6ea; }
+.theme-preview-light .theme-preview-line { background: #c9cfd6; }
+
+.theme-preview-dark { background: #111317; }
+.theme-preview-dark .theme-preview-bar { background: #1a1d22; border-bottom: 1px solid #2b3037; }
+.theme-preview-dark .theme-preview-line { background: #3d434c; }
+
+.theme-preview-auto { background: linear-gradient(to right, #f6f7f9 50%, #111317 50%); }
+.theme-preview-auto .theme-preview-bar {
+  background: linear-gradient(to right, #ffffff 50%, #1a1d22 50%);
+  border-bottom: 1px solid #2b3037;
+}
+.theme-preview-auto .theme-preview-line { background: linear-gradient(to right, #c9cfd6 50%, #3d434c 50%); }
+
+/* Font preview: a big "Aa", a short title in the heading font, and a sample line in
+   the body font — always in ITS OWN pairing, no matter which font is active right now
+   (same idea as the fixed colors in .theme-preview above). */
+.font-preview {
+  grid-area: preview;
+  display: grid;
+  gap: 2px;
+  height: 64px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+}
+.font-preview-glyph { font-size: 1.6rem; line-height: 1.15; }
+.font-preview-title { font-size: 0.9rem; line-height: 1.2; }
+.font-preview-sample {
+  font-size: 0.75rem; line-height: 1.3;
+  color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.font-preview-default .font-preview-glyph,
+.font-preview-default .font-preview-title {
+  font-family: var(--font-system);
+  font-weight: 700;
+}
+.font-preview-default .font-preview-sample { font-family: var(--font-system); }
+
+.font-preview-nunito-bowlby .font-preview-glyph,
+.font-preview-nunito-bowlby .font-preview-title {
+  font-family: "Bowlby One", var(--font-system);
+  font-weight: 400;
+}
+.font-preview-nunito-bowlby .font-preview-sample { font-family: "Nunito Sans", var(--font-system); }
+
+.font-preview-oswald-indie .font-preview-glyph,
+.font-preview-oswald-indie .font-preview-title {
+  font-family: "Oswald", var(--font-system);
+  font-weight: 600;
+}
+.font-preview-oswald-indie .font-preview-sample { font-family: "Indie Flower", var(--font-system); }
+
+/* ---------- Tablet ---------- */
+@media (max-width: 1023px) {
+  :root { --sidebar-width: 200px; }
+  .product-hero { grid-template-columns: 160px minmax(0, 1fr); }
+}
+
+/* ---------- Phone: sidebar becomes wrapping chips ---------- */
+@media (max-width: 767px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+
+  .sidebar {
+    position: static; height: auto; overflow: visible;
+    padding: var(--space-3) var(--space-4);
+    border-right: 0; border-bottom: 1px solid var(--border);
+  }
+  .sidebar-title { display: none; }
+  .nav-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .nav-item { min-height: 40px; border: 1px solid var(--border); border-radius: 99px; }
+  .new-category { margin-top: var(--space-2); }
+  .new-category .nav-item { display: inline-flex; border-style: dashed; }
+  .new-category-form { padding: var(--space-2) 0 0; }
+  .new-category-form .button { justify-self: start; }
+  .sidebar-footer { margin-top: var(--space-2); padding-top: 0; border-top: 0; }
+  .sidebar-footer .nav-item { display: inline-flex; }
+
+  /* Search goes to its own full-width row under the brand and the button. */
+  .topbar { height: auto; flex-wrap: wrap; padding-block: var(--space-2); row-gap: var(--space-2); }
+  .search { order: 3; flex-basis: 100%; max-width: none; }
+  .search-key { display: none; }
+
+  .topbar .button span { display: none; }  /* icon-only on phones... */
+  .topbar .button { padding: 0 var(--space-3); }
+  .topbar .button::after { content: "Adicionar"; }  /* ...but still with a short visible label */
+
+  .content { padding-top: var(--space-5); }
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-3); }
+
+  .card { padding: var(--space-4); }
+  .product-hero { grid-template-columns: minmax(0, 1fr); }
+  .product-hero-image { max-width: 220px; }
+
+  .offer { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "store price" "bar bar" "meta meta"; }
+  .offer-actions { margin-left: 0; }
+  .chart-box { height: 240px; }
+
+  .option-grid { grid-template-columns: 1fr; }
+}
