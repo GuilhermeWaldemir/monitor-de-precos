@@ -92,7 +92,7 @@ monitor-de-precos/
 **Testes sem internet:** `checker.check_product` e `create_app` recebem uma função `fetch`. Nos testes, ela devolve HTML salvo em vez de acessar as lojas.
 
 ## Roteiro (fazer em ordem)
-1. ⏳ **Ambiente:** ~~ambiente virtual~~ ✅. Falta instalar o Git e fazer o primeiro commit.
+1. ✅ **Ambiente:** ambiente virtual, Git instalado e primeiros commits (2026-09-14).
 2. ✅ **Base do site, banco e leitura de preço** (2026-09-14): cadastro de produto com links, leitura via JSON-LD, SQLite, card com melhor preço, preço manual, 61 testes.
 3. ✅ **Categorias, tela do produto, gráfico e novas fontes** (2026-09-14): barra lateral com categorias, grade de cards, tela do produto com gráfico de linhas (Chart.js), produtos parecidos, adicionar/remover fonte, Amazon (leitor HTML) e Magazine Luiza (manual), código opcional/EAN, 140 testes.
 4. **Mais lojas:** testar outras lojas (Pichau, lojas de perfume e roupa); adaptador específico só quando o JSON-LD genérico não servir.
@@ -128,5 +128,7 @@ pytest                                # rodar testes
 
 ## Observações do ambiente
 - Pasta dentro do **OneDrive**: a `.venv` tem milhares de arquivos e deixa a sincronização lenta. `.venv/` e `data/` já estão no `.gitignore`. Se a sincronização incomodar, considere mover o projeto para fora do OneDrive.
-- Em 2026-09-14 o **Git ainda não estava instalado** nesta máquina.
+- **Git 2.55** instalado em 2026-09-14 (via `winget`). Repositório local na branch `main`, autor configurado só no repositório. Ainda **sem remoto no GitHub**. Se `git` não for reconhecido num terminal antigo, use `"$env:ProgramFiles\Git\cmd\git.exe"` ou abra um terminal novo.
+- O arquivo `mudanças` (lista pessoal de pedidos) fica fora do Git (`.gitignore`).
+- No PowerShell 5.1, mensagens de commit com aspas duplas quebram o `git commit -m`; use `git commit -F arquivo.txt`.
 - Para ver o site pelo terminal sem abrir navegador: `msedge --headless=new --screenshot=arquivo.png --window-size=1100,900 http://127.0.0.1:5000/` (largura mínima real ~500px).
