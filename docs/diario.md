@@ -22,6 +22,7 @@ Etapa 7  Brilho suave nos cards .............. ✅  205 testes
 Etapa 8  Animação de pontinhos nas categorias  🔍  210 testes
 Etapa 9  Slider de preço ..................... 🔍  217 testes
 Etapa 10 Favorito "Capturar preço" ........... 🔍  245 testes
+Etapa 11 Git, GitHub e CI .................... ✅  245 testes no GitHub Actions
 Etapa 11+ ver "Próximos passos"
 ```
 
@@ -350,6 +351,27 @@ Etapa 11+ ver "Próximos passos"
 
 ---
 
+## Etapa 11: Git, GitHub e CI ✅
+*2026-09-14 · 245 testes (também no GitHub Actions)*
+
+**Objetivo:** versionar o projeto, publicá-lo no GitHub e fazer os testes rodarem sozinhos a cada envio.
+
+**O que foi feito**
+- **Git 2.55** instalado com `winget`. Repositório criado na branch `main`, com o autor configurado só neste projeto. O arquivo pessoal `mudanças` ficou fora (`.gitignore`).
+- **Commits por área** (configuração, leitura de preços, banco e lógica, site, testes, documentação). O código já existia antes do Git, então não foi inventada uma ordem falsa; a ordem real das etapas está neste diário.
+- **Publicado** em [github.com/GuilhermeWaldemir/monitor-de-precos](https://github.com/GuilhermeWaldemir/monitor-de-precos). O login ficou salvo pelo Git Credential Manager.
+- **GitHub Actions** (`.github/workflows/tests.yml`): a cada `git push` na `main` (e em pull requests), uma máquina Ubuntu instala o Python 3.13 e as dependências e roda o `pytest`. A primeira execução passou. O **selo "Testes"** no topo do README mostra o resultado mais recente.
+
+**Conceitos para explicar em entrevista**
+- **CI (integração contínua):** todo código enviado é testado automaticamente num ambiente limpo, diferente da máquina de quem programou (aqui, Linux em vez de Windows).
+- **Por que os testes funcionam no CI:** eles nunca acessam a internet (páginas salvas em `tests/fixtures` e `fetch` falso), então não dependem das lojas estarem no ar.
+- **`permissions: contents: read`:** o workflow recebe só a permissão mínima de que precisa.
+- **Quebra de linha (LF × CRLF):** com `core.autocrlf=true`, o Git guarda LF no repositório e entrega CRLF no Windows, e os avisos no `git add` são esperados.
+
+**Commit:** `ci: run the test suite on GitHub Actions and show its badge in the README`
+
+---
+
 ## Próximos passos
 
 Tarefas do arquivo `mudanças`, feitas **uma por vez**, com revisão entre elas:
@@ -374,6 +396,6 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Criar o repositório no GitHub e enviar (`git push`) | ✅ 2026-09-14: [github.com/GuilhermeWaldemir/monitor-de-precos](https://github.com/GuilhermeWaldemir/monitor-de-precos) |
 | Verificação agendada (algumas vezes por dia) | 💡 |
 | Alerta de queda de preço (e-mail ou Telegram) | 💡 |
-| Testes no GitHub Actions (CI) | 💡 |
+| Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | Deploy com modo demonstração | 💡 |
 | README bilíngue com GIF | 💡 |
