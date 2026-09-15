@@ -1,5 +1,7 @@
 # Monitor de Preços
 
+[![Testes](https://github.com/GuilhermeWaldemir/monitor-de-precos/actions/workflows/tests.yml/badge.svg)](https://github.com/GuilhermeWaldemir/monitor-de-precos/actions/workflows/tests.yml)
+
 Compara o preço do **mesmo produto** em várias lojas online brasileiras, guarda o histórico e destaca o melhor preço.
 
 > Projeto em construção. README completo (PT/EN, GIF de demonstração) virá na fase final.

@@ -1,0 +1,30 @@
+# Runs the test suite on GitHub's servers every time code is pushed or a pull request is opened.
+# The tests never touch the internet (saved store pages in tests/fixtures), so they work here too.
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read  # this workflow only reads the code
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v7
+
+      - name: Instalar o Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip  # reuses downloaded packages between runs
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Rodar os testes
+        run: pytest -q

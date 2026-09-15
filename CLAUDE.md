@@ -52,7 +52,7 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 - **Chart.js 4.5.1** para o gráfico de histórico, salvo em `monitor/static/vendor/` (funciona offline, versão fixa).
 - **Fontes self-hosted** (Nunito Sans, Oswald, Bowlby One, Indie Flower) em `monitor/static/fonts/`, licença **SIL Open Font License 1.1** (ver `LICENSES.md` na mesma pasta) — mesmo motivo do Chart.js: funciona offline, sem depender de um CDN de terceiros.
 - `pytest` para os testes.
-- GitHub Actions para CI (fase final).
+- **GitHub Actions** (`.github/workflows/tests.yml`): roda o `pytest` no Ubuntu com Python 3.13 a cada push na `main` e em pull requests. Selo no README.
 
 Comece com o mínimo e só adicione biblioteca quando houver necessidade real.
 
