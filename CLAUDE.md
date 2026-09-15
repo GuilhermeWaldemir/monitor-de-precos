@@ -128,7 +128,7 @@ pytest                                # rodar testes
 
 ## Observações do ambiente
 - Pasta dentro do **OneDrive**: a `.venv` tem milhares de arquivos e deixa a sincronização lenta. `.venv/` e `data/` já estão no `.gitignore`. Se a sincronização incomodar, considere mover o projeto para fora do OneDrive.
-- **Git 2.55** instalado em 2026-09-14 (via `winget`). Repositório local na branch `main`, autor configurado só no repositório. Ainda **sem remoto no GitHub**. Se `git` não for reconhecido num terminal antigo, use `"$env:ProgramFiles\Git\cmd\git.exe"` ou abra um terminal novo.
+- **Git 2.55** instalado em 2026-09-14 (via `winget`). Branch `main`, autor configurado só no repositório. Remoto: **https://github.com/GuilhermeWaldemir/monitor-de-precos** (`origin`), com login salvo pelo Git Credential Manager. Se `git` não for reconhecido num terminal antigo, use `"$env:ProgramFiles\Git\cmd\git.exe"` ou abra um terminal novo.
 - O arquivo `mudanças` (lista pessoal de pedidos) fica fora do Git (`.gitignore`).
 - No PowerShell 5.1, mensagens de commit com aspas duplas quebram o `git commit -m`; use `git commit -F arquivo.txt`.
 - Para ver o site pelo terminal sem abrir navegador: `msedge --headless=new --screenshot=arquivo.png --window-size=1100,900 http://127.0.0.1:5000/` (largura mínima real ~500px).

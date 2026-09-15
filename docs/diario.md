@@ -371,7 +371,7 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Etapa | Status |
 |---|---|
 | Instalar o Git e fazer os commits | ✅ 2026-09-14: 6 commits por área (configuração, leitura de preços, banco e lógica, site, testes, documentação) |
-| Criar o repositório no GitHub e enviar (`git push`) | ⏳ |
+| Criar o repositório no GitHub e enviar (`git push`) | ✅ 2026-09-14: [github.com/GuilhermeWaldemir/monitor-de-precos](https://github.com/GuilhermeWaldemir/monitor-de-precos) |
 | Verificação agendada (algumas vezes por dia) | 💡 |
 | Alerta de queda de preço (e-mail ou Telegram) | 💡 |
 | Testes no GitHub Actions (CI) | 💡 |
