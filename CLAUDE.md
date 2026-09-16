@@ -89,7 +89,7 @@ monitor-de-precos/
 │   ├── daily_check.py  # verificação agendada: roda sozinha, avisa por e-mail e grava log
 │   ├── config.py       # leitor do .env (segredos fora do Git)
 │   ├── templates/      # base (layout+barra lateral), index (grade), product, product_form, settings, parciais _*.html
-│   └── static/         # style.css, js/product-chart.js, vendor/chart.umd.min.js, fonts/ (self-hosted, OFL)
+│   └── static/         # style.css, js/, vendor/chart.umd.min.js, fonts/ (OFL), logo.svg + logo-mark*.png
 ├── tests/
 │   ├── helpers.py      # URLs de exemplo, ids das categorias e read_fixture()
 │   ├── conftest.py     # fixture `conn` (banco temporário)

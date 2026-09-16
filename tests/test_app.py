@@ -484,9 +484,16 @@ def test_every_page_has_the_logo_and_the_favicon(anonymous_client):
     assert 'class="brand-mark"' in page  # the logo drawn in the top bar
     assert 'rel="icon"' in page and "logo-mark.svg" in page
 
+    assert "logo-mark-256.png" in page  # PNG for phones
+
     static = Path(__file__).parent.parent / "monitor" / "static"
     assert (static / "logo-mark.svg").is_file()
     assert (static / "logo.svg").is_file()  # full logo, used in the README
+    for name in ["logo.png", "logo-mark-32.png", "logo-mark-64.png", "logo-mark-128.png",
+                 "logo-mark-256.png", "logo-mark-512.png"]:
+        png = static / name
+        assert png.is_file() and png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", name
+        assert png.stat().st_size > 800, f"{name} parece estar em branco"  # blank renders are tiny
 
 
 # ---------- Price drop alerts ----------
