@@ -92,3 +92,15 @@ Formato: **Problema → Processo → Solução → Resultado**.
 - **Solução:** `db._migrate_allow_capture_source` roda no `init_db`. Se a tabela ainda não aceita `'capture'`, ela é reconstruída com `BEGIN` → `CREATE price_checks_new` → `INSERT ... SELECT` → `DROP` → `RENAME` → recriar o índice → `COMMIT`; se algo falha, `ROLLBACK`. Por fim, religa `PRAGMA foreign_keys`. Rodar de novo não faz nada. Um teste cria um banco no formato antigo, com histórico, e confere que as linhas, o índice e o `ON DELETE CASCADE` sobrevivem.
 - **Detalhe que apareceu:** o servidor em modo `--debug` recarrega a cada arquivo salvo, e por isso a migração rodou no banco real assim que o `db.py` foi salvo, antes dos testes. Deu certo (21 linhas preservadas, sem erro de chave estrangeira), mas a lição fica: **fazer backup do banco antes de escrever uma migração**, não depois.
 - **Resultado:** o banco real foi migrado sem perder dados, e existe um backup em `data/monitor-backup-antes-migracao.db`.
+
+## 12. Lojas que bloqueiam robôs: o que fazer sem burlar nada
+*2026-09-16*
+
+- **Problema:** a maioria das lojas grandes (Mercado Livre, Magazine Luiza e, testada agora, a **Pichau**) devolve erro para qualquer programa que tente ler a página, mesmo se identificando honestamente. O pedido inicial foi "burlar de alguma maneira".
+- **Processo:** burlar significaria fingir ser navegador, girar IPs por proxy ou resolver captcha (por exemplo, com os modos "stealth" do Scrapling). Isso viola os termos de uso, quebra a cada atualização da proteção e, num portfólio feito para vagas em e-commerce, depõe contra o candidato. Então a pergunta virou outra: **como obter o preço de um jeito que a loja aceite?**
+- **Curiosidade da Pichau:** o `robots.txt` dela **permite** as páginas de produto (só proíbe `/api/`, `/checkout`, `/customer/` e URLs com `?`), e o próprio `robots.txt` é servido normalmente. Mesmo assim a página de produto responde **403**. Ou seja, a política escrita e a proteção automática não concordam entre si.
+- **Solução:** três caminhos legítimos, em ordem de preferência:
+  1. **API oficial**, quando existe — implementada para o Mercado Livre com OAuth (Etapa 15 do diário);
+  2. **favorito "Capturar preço"**, em que a pessoa abre a página e captura o preço que ela mesma está vendo;
+  3. **preço manual**, o caminho simples que sempre funciona.
+- **Resultado:** o Mercado Livre saiu do grupo "bloqueado" e passou a ser lido oficialmente. Magazine Luiza e Pichau seguem pela captura, com o motivo documentado no card e aqui. Lojas que publicam os dados (KaBuM!, Terabyte, Amazon, promofarma) continuam automáticas.

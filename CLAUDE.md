@@ -44,6 +44,8 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 | Amazon | ✅ HTML (`monitor/amazon.py`) | Sem JSON-LD. A mesma URL alterna entre layout com oferta principal e só "outras ofertas"; no segundo caso o leitor registra erro em vez de usar o preço "a partir de" |
 | Mercado Livre | ✅ API oficial (`monitor/mercadolivre.py`) | A página bloqueia robôs. A leitura usa a **API oficial com OAuth**: crie a aplicação em developers.mercadolivre.com.br, ponha App ID/Secret no `.env` e conecte em Configurações. Sem conexão, cai no antigo bloqueio e usa preço manual/captura |
 | Magazine Luiza | ❌ | 403 até no `robots.txt`. Usar preço manual |
+| Pichau | ❌ (testado em 2026-09-16) | O `robots.txt` **permite** páginas de produto, mas a proteção anti-robô devolve 403 para cliente identificado. Usar captura/preço manual |
+| promofarma.com.br | ✅ JSON-LD | Apareceu num produto cadastrado pelo Guilherme e funciona sem ajuste |
 
 ## Stack
 - **Python 3.13.** No Windows desta máquina, o comando é `py` (`python` não funciona).

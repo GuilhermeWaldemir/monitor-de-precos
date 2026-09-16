@@ -511,6 +511,8 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 **Commit sugerido:** `feat: add the daily scheduled price check (12:30) with logging`
 
+**Teste extra (Pichau):** o `robots.txt` da Pichau permite as páginas de produto, mas a proteção anti-robô devolve 403 mesmo para um cliente identificado. Ela fica no grupo "captura ou preço manual", junto com a Magazine Luiza (*Problema 12*).
+
 ---
 
 ## Próximos passos
