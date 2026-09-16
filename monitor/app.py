@@ -507,7 +507,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
     def _finish_ml_connection(code: str):
         credentials = mercadolivre.AppCredentials.from_env()
         try:
-            mercadolivre.connect(
+            renews_itself = mercadolivre.connect(
                 get_conn(),
                 credentials,
                 mercadolivre.code_from_answer(code),
@@ -519,6 +519,12 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
         else:
             session.pop("ml_code_verifier", None)
             flash("Mercado Livre conectado. Os preços passam a vir da API oficial.", "ok")
+            if not renews_itself:
+                flash(
+                    "Atenção: o acesso vale só 6 horas. Para renovar sozinho, ative a permissão "
+                    "offline_access na aplicação do Mercado Livre e conecte de novo.",
+                    "error",
+                )
         return redirect(url_for("settings", _anchor="mercado-livre"))
 
     # ---------- Settings ----------

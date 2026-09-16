@@ -191,10 +191,35 @@ def test_disconnect(conn):
     assert not mercadolivre.is_connected(conn)
 
 
-def test_broken_token_answer(conn):
-    api = FakeApi(token_answer={"erro": "invalid_grant"})
-    with pytest.raises(MercadoLivreError, match="Resposta inesperada"):
+def test_broken_token_answer_names_the_missing_field(conn):
+    api = FakeApi(token_answer={"token_type": "Bearer", "user_id": 123})
+    with pytest.raises(MercadoLivreError, match="faltou access_token, expires_in") as error:
         mercadolivre.connect(conn, CREDENTIALS, "CODE", post_form=api.post_form)
+    assert "token_type" in str(error.value)  # tells which fields DID come (names only)
+    assert not mercadolivre.is_connected(conn)
+
+
+def test_connect_with_refresh_token_renews_itself(conn):
+    api = FakeApi(token_answer={"access_token": "A", "refresh_token": "R", "expires_in": 21600})
+    assert mercadolivre.connect(conn, CREDENTIALS, "CODE", post_form=api.post_form) is True
+
+
+def test_connect_without_offline_access_still_works_for_6_hours(conn):
+    """Without the offline_access permission Mercado Livre sends no refresh token."""
+    api = FakeApi(token_answer={"access_token": "SO-6-HORAS", "token_type": "Bearer", "expires_in": 21600})
+
+    assert mercadolivre.connect(conn, CREDENTIALS, "CODE", post_form=api.post_form) is False
+    assert mercadolivre.is_connected(conn)
+    assert mercadolivre.access_token(conn, CREDENTIALS, api.post_form) == "SO-6-HORAS"
+
+
+def test_expired_access_without_refresh_token_asks_to_connect_again(conn):
+    api = FakeApi(token_answer={"access_token": "VELHO", "expires_in": 60})  # expires in 1 minute
+    mercadolivre.connect(conn, CREDENTIALS, "CODE", post_form=api.post_form)
+
+    with pytest.raises(MercadoLivreError, match="expirou. Conecte de novo"):
+        mercadolivre.access_token(conn, CREDENTIALS, api.post_form)
+    assert len(api.token_calls) == 1  # did not try to renew with an empty refresh token
 
 
 # ---------- Reading a product ----------

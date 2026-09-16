@@ -144,8 +144,11 @@ def connect(
     code: str,
     post_form=None,
     code_verifier: str | None = None,
-) -> None:
-    """Exchange the authorization code for the tokens and save them."""
+) -> bool:
+    """Exchange the authorization code for the tokens and save them.
+
+    Returns True when the access renews itself, False when it lasts only 6 hours.
+    """
     data = {
         "grant_type": "authorization_code",
         "client_id": credentials.client_id,
@@ -155,7 +158,7 @@ def connect(
     }
     if code_verifier:
         data["code_verifier"] = code_verifier
-    _save_tokens(conn, _post_token(data, post_form))
+    return _save_tokens(conn, _post_token(data, post_form))
 
 
 def disconnect(conn: sqlite3.Connection) -> None:
@@ -176,6 +179,12 @@ def access_token(conn: sqlite3.Connection, credentials: AppCredentials, post_for
     if datetime.now() + RENEW_BEFORE < expires_at:
         return token["access_token"]
 
+    if not token["refresh_token"]:
+        raise MercadoLivreError(
+            "O acesso ao Mercado Livre expirou. Conecte de novo em Configurações "
+            "(ou ative a permissão offline_access na aplicação para renovar sozinho)."
+        )
+
     answer = _post_token(
         {
             "grant_type": "refresh_token",
@@ -189,19 +198,32 @@ def access_token(conn: sqlite3.Connection, credentials: AppCredentials, post_for
     return answer["access_token"]
 
 
-def _save_tokens(conn: sqlite3.Connection, answer: dict) -> None:
-    try:
-        expires_at = datetime.now() + timedelta(seconds=int(answer["expires_in"]))
-        db.save_oauth_token(
-            conn,
-            PROVIDER,
-            access_token=answer["access_token"],
-            # The refresh token is single use: each renewal gives a new one, which must be saved.
-            refresh_token=answer["refresh_token"],
-            expires_at=expires_at.isoformat(timespec="seconds"),
+def _save_tokens(conn: sqlite3.Connection, answer: dict) -> bool:
+    """Save the tokens. Returns True when the access can renew itself (refresh token came)."""
+    if not isinstance(answer, dict):
+        raise MercadoLivreError("Resposta inesperada do Mercado Livre ao pedir o token.")
+    missing = [field for field in ("access_token", "expires_in") if not answer.get(field)]
+    if missing:
+        # Only field NAMES go in the message: the answer itself holds secrets.
+        logger.warning("Mercado Livre token answer without %s; fields received: %s", missing, sorted(answer))
+        raise MercadoLivreError(
+            f"Resposta inesperada do Mercado Livre: faltou {', '.join(missing)} "
+            f"(veio: {', '.join(sorted(answer)) or 'nada'})."
         )
-    except (KeyError, TypeError, ValueError):
-        raise MercadoLivreError("Resposta inesperada do Mercado Livre ao pedir o token.") from None
+
+    expires_at = datetime.now() + timedelta(seconds=int(answer["expires_in"]))
+    # Mercado Livre only sends a refresh token when the app has the "offline_access"
+    # permission. Without it the access still works, but only until it expires (6 hours).
+    # The refresh token is single use: each renewal gives a new one, which must be saved.
+    refresh_token = answer.get("refresh_token") or ""
+    db.save_oauth_token(
+        conn,
+        PROVIDER,
+        access_token=answer["access_token"],
+        refresh_token=refresh_token,
+        expires_at=expires_at.isoformat(timespec="seconds"),
+    )
+    return bool(refresh_token)
 
 
 # ---------- Reading a product ----------

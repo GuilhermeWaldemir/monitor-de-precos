@@ -130,9 +130,16 @@ MONITOR_ML_REDIRECT_URI={{ url_for('mercadolivre_callback', _external=True) }}</
       <li>Rode o servidor de novo e volte aqui.</li>
     </ol>
   {% elif ml_token %}
-    <p class="flash flash-ok">
-      Conectado. O acesso vale até {{ ml_token['expires_at'] }} e é renovado sozinho.
-    </p>
+    {% if ml_token['refresh_token'] %}
+      <p class="flash flash-ok">Conectado. O acesso é renovado sozinho.</p>
+    {% else %}
+      <p class="flash flash-ok">Conectado, com acesso válido até {{ ml_token['expires_at'] }}.</p>
+      <p class="hint">
+        Para não precisar conectar de novo a cada 6 horas (e para a verificação das 12:30 funcionar),
+        ative a permissão <strong>offline_access</strong> na sua aplicação do Mercado Livre e clique em
+        "Desconectar" e "Conectar" outra vez.
+      </p>
+    {% endif %}
     <form method="post" action="{{ url_for('mercadolivre_disconnect') }}"
           data-confirm="Desconectar a conta do Mercado Livre?">
       <button type="submit" class="button button-ghost button-danger">{{ icon("logout", 16) }}<span>Desconectar</span></button>
