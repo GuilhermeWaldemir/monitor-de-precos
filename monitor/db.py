@@ -87,6 +87,15 @@ CREATE TABLE IF NOT EXISTS links (
 
 {price_checks_table}
 
+-- Tokens of the stores' official APIs (today only Mercado Livre). One row per provider.
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    provider      TEXT PRIMARY KEY,
+    access_token  TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+
 -- One row per option (e.g. "theme"). Options with no saved row use the default in monitor/settings.py.
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -553,6 +562,36 @@ def mark_alert_emailed(conn: sqlite3.Connection, alert_id: int) -> None:
 def list_user_emails(conn: sqlite3.Connection) -> list[str]:
     """Who receives the alerts: every account (the products are shared between them)."""
     return [row["email"] for row in conn.execute("SELECT email FROM users ORDER BY id")]
+
+
+# ---------- Store API tokens (OAuth) ----------
+
+def save_oauth_token(
+    conn: sqlite3.Connection, provider: str, *, access_token: str, refresh_token: str, expires_at: str
+) -> None:
+    """Save (or replace) the tokens of one provider. UPSERT: insert, or update if it exists."""
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(provider) DO UPDATE SET
+                access_token = excluded.access_token,
+                refresh_token = excluded.refresh_token,
+                expires_at = excluded.expires_at,
+                updated_at = excluded.updated_at
+            """,
+            (provider, access_token, refresh_token, expires_at, now()),
+        )
+
+
+def get_oauth_token(conn: sqlite3.Connection, provider: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM oauth_tokens WHERE provider = ?", (provider,)).fetchone()
+
+
+def delete_oauth_token(conn: sqlite3.Connection, provider: str) -> None:
+    with conn:
+        conn.execute("DELETE FROM oauth_tokens WHERE provider = ?", (provider,))
 
 
 def get_settings_rows(conn: sqlite3.Connection) -> dict[str, str]:

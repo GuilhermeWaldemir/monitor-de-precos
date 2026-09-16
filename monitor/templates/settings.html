@@ -108,6 +108,53 @@
   </div>
 </form>
 
+<section class="card capture-setup" id="mercado-livre" aria-labelledby="ml-title">
+  <h2 id="ml-title">Mercado Livre (API oficial)</h2>
+  <p class="muted">
+    O Mercado Livre bloqueia a leitura das páginas por programas. Em vez de tentar burlar isso,
+    o site usa a API oficial: você autoriza uma aplicação sua e os preços passam a vir por ela.
+  </p>
+
+  {% if not ml_credentials %}
+    <p class="flash flash-error">Aplicação ainda não configurada.</p>
+    <ol class="capture-steps">
+      <li>Entre em <strong>developers.mercadolivre.com.br</strong> → Minhas aplicações → <strong>Criar aplicação</strong>.</li>
+      <li>Em "URI de redirect", use <code>{{ url_for('mercadolivre_callback', _external=True) }}</code>.
+        Se o Mercado Livre exigir um endereço <code>https</code>, ponha qualquer um seu (ex.: <code>https://exemplo.com/callback</code>)
+        e depois use a opção "colar o código" aqui embaixo.</li>
+      <li>Copie o <strong>App ID</strong> e a <strong>Secret Key</strong> para o <code>.env</code>:
+        <pre class="env-example">MONITOR_ML_CLIENT_ID=seu-app-id
+MONITOR_ML_CLIENT_SECRET=sua-secret-key
+MONITOR_ML_REDIRECT_URI={{ url_for('mercadolivre_callback', _external=True) }}</pre>
+      </li>
+      <li>Rode o servidor de novo e volte aqui.</li>
+    </ol>
+  {% elif ml_token %}
+    <p class="flash flash-ok">
+      Conectado. O acesso vale até {{ ml_token['expires_at'] }} e é renovado sozinho.
+    </p>
+    <form method="post" action="{{ url_for('mercadolivre_disconnect') }}"
+          data-confirm="Desconectar a conta do Mercado Livre?">
+      <button type="submit" class="button button-ghost button-danger">{{ icon("logout", 16) }}<span>Desconectar</span></button>
+    </form>
+  {% else %}
+    <p class="muted">Aplicação configurada (App ID <code>{{ ml_credentials.client_id }}</code>). Falta autorizar.</p>
+    <a class="button" href="{{ url_for('mercadolivre_connect') }}">Conectar ao Mercado Livre</a>
+
+    <details class="add-source">
+      <summary class="button button-ghost button-small">{{ icon("plus", 16) }}<span>Colar o código manualmente</span></summary>
+      <form method="post" action="{{ url_for('mercadolivre_code') }}" class="add-source-form">
+        <label for="ml-answer">URL de retorno (ou só o código)</label>
+        <div class="input-row">
+          <input id="ml-answer" name="answer" placeholder="https://exemplo.com/callback?code=TG-..." required>
+          <button type="submit" class="button">Conectar</button>
+        </div>
+        <p class="hint">Use quando o Mercado Livre exigir um endereço https no retorno: autorize, copie a URL que abrir e cole aqui.</p>
+      </form>
+    </details>
+  {% endif %}
+</section>
+
 <section class="card capture-setup" id="alertas" aria-labelledby="alerts-title">
   <h2 id="alerts-title">Alertas de preço por e-mail</h2>
   <p class="muted">

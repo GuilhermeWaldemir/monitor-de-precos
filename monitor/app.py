@@ -4,13 +4,14 @@ Flask finds the create_app() function below by itself.
 """
 
 import os
+import secrets
 from contextlib import closing
 from datetime import datetime
 from decimal import Decimal
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 
-from monitor import alerts, auth, checker, compare, db, emailer, history
+from monitor import alerts, auth, checker, compare, db, emailer, history, mercadolivre
 from monitor.config import load_env_file
 from monitor.capture import bookmarklet_href, read_captured
 from monitor.fetcher import fetch_html
@@ -43,7 +44,9 @@ FONT_OPTIONS = [
 # Anyone can browse the site. Changing anything needs an account (see require_login below).
 PUBLIC_ENDPOINTS = {"static", "login", "signup"}
 # Pages that only exist to change data, so they need an account even being a GET.
-PAGES_THAT_NEED_LOGIN = {"new_product", "edit_product", "capture_page"}
+PAGES_THAT_NEED_LOGIN = {
+    "new_product", "edit_product", "capture_page", "mercadolivre_connect", "mercadolivre_callback",
+}
 
 
 def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask:
@@ -458,6 +461,56 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
             error=error,
         ), 400 if error else 200
 
+    # ---------- Mercado Livre (official API) ----------
+
+    @app.get("/mercadolivre/connect")
+    def mercadolivre_connect():
+        """Sends the user to Mercado Livre to authorize this app."""
+        credentials = mercadolivre.AppCredentials.from_env()
+        if credentials is None:
+            flash("Falta MONITOR_ML_CLIENT_ID e MONITOR_ML_CLIENT_SECRET no .env.", "error")
+            return redirect(url_for("settings", _anchor="mercado-livre"))
+
+        # Random value kept in the session: proves the answer belongs to this request.
+        state = secrets.token_urlsafe(16)
+        session["ml_state"] = state
+        return redirect(mercadolivre.authorization_url(credentials, state))
+
+    @app.get("/mercadolivre/callback")
+    def mercadolivre_callback():
+        """Where Mercado Livre sends the user back, with the authorization code."""
+        expected_state = session.pop("ml_state", None)
+        if not expected_state or request.args.get("state") != expected_state:
+            flash("Autorização não confere com o pedido feito aqui. Tente conectar de novo.", "error")
+            return redirect(url_for("settings", _anchor="mercado-livre"))
+        return _finish_ml_connection(request.args.get("code", ""))
+
+    @app.post("/mercadolivre/code")
+    def mercadolivre_code():
+        """Manual way: the user pastes the URL (or the code) Mercado Livre showed."""
+        try:
+            code = mercadolivre.code_from_answer(request.form.get("answer", ""))
+        except mercadolivre.MercadoLivreError as error:
+            flash(str(error), "error")
+            return redirect(url_for("settings", _anchor="mercado-livre"))
+        return _finish_ml_connection(code)
+
+    @app.post("/mercadolivre/disconnect")
+    def mercadolivre_disconnect():
+        mercadolivre.disconnect(get_conn())
+        flash("Conta do Mercado Livre desconectada.", "ok")
+        return redirect(url_for("settings", _anchor="mercado-livre"))
+
+    def _finish_ml_connection(code: str):
+        credentials = mercadolivre.AppCredentials.from_env()
+        try:
+            mercadolivre.connect(get_conn(), credentials, mercadolivre.code_from_answer(code))
+        except mercadolivre.MercadoLivreError as error:
+            flash(str(error), "error")
+        else:
+            flash("Mercado Livre conectado. Os preços passam a vir da API oficial.", "ok")
+        return redirect(url_for("settings", _anchor="mercado-livre"))
+
     # ---------- Settings ----------
 
     @app.route("/settings", methods=["GET", "POST"])
@@ -501,6 +554,8 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
             theme_options=THEME_OPTIONS,
             font_options=FONT_OPTIONS,
             smtp_config=smtp,
+            ml_credentials=mercadolivre.AppCredentials.from_env(),
+            ml_token=db.get_oauth_token(get_conn(), mercadolivre.PROVIDER),
             # The bookmarklet must point back to this site, wherever it is running.
             bookmarklet_href=bookmarklet_href(request.url_root),
             **context,
