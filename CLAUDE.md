@@ -30,6 +30,8 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 - **Animações:** cada animação tem um interruptor liga/desliga em Configurações → Animações (hoje: brilho nos cards, ligado por padrão). Nenhuma aparece com "reduzir movimento" do sistema. Componentes de referência em React (21st.dev) são **reescritos em CSS/JS puro**, sem adicionar React/Tailwind ao projeto.
 - **Loja bloqueou = capturar ou digitar o preço.** Se a leitura automática falhar, o card mostra o motivo. O usuário pode usar o **favorito "Capturar preço"** (bookmarklet que lê a página que ele mesmo abriu e só salva após confirmação; origem `capture`) ou informar o preço à mão (origem `manual`). **Nunca burlar proteções** (nada de fingir navegador, proxy, captcha ou modos "stealth" de bibliotecas como o Scrapling).
 - **Mudança de esquema com dados reais:** escrever migração em `db.py` (ex.: `_migrate_allow_capture_source`), testada a partir de um banco no formato antigo. **Fazer backup de `data/monitor.db` antes**, porque o servidor em `--debug` roda o `init_db` a cada arquivo salvo.
+- **Contas (2026-09-16):** o site tem cadastro e login (tabela `users`, senha só como *hash*). **Visitante vê, mas não mexe:** todo POST e as telas que só servem para mudar dados exigem login. Os **produtos continuam compartilhados** entre as contas; cada conta serve para entrar e receber os alertas de preço no e-mail dela.
+- **Alerta de preço:** e-mail quando o melhor preço de um produto cair **4% ou mais** em relação ao último melhor preço conhecido; depois de avisar, o preço novo vira a referência (não repetir aviso).
 - **Sem estoque não vira melhor preço**, mas continua aparecendo.
 - **Sem IA ou LLM** no núcleo.
 
@@ -77,6 +79,7 @@ monitor-de-precos/
 │   ├── compare.py      # monta a comparação, escolhe o melhor preço e os limites do slider
 │   ├── capture.py      # favorito "Capturar preço": gera o link javascript: e valida o que ele envia
 │   ├── search.py       # barra de pesquisa (nome sem acentos, parte da palavra, código/EAN)
+│   ├── auth.py         # contas: regras de e-mail/senha, cadastro, login (hash do Werkzeug)
 │   ├── templates/      # base (layout+barra lateral), index (grade), product, product_form, settings, parciais _*.html
 │   └── static/         # style.css, js/product-chart.js, vendor/chart.umd.min.js, fonts/ (self-hosted, OFL)
 ├── tests/

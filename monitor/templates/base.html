@@ -24,9 +24,27 @@
       <kbd class="search-key" aria-hidden="true">/</kbd>
     </form>
 
-    <a class="button" href="{{ url_for('new_product', category=active_category_id) }}">
-      {{ icon("plus") }}<span>Adicionar produto</span>
-    </a>
+    <div class="topbar-actions">
+      {% if current_user %}
+        <a class="button" href="{{ url_for('new_product', category=active_category_id) }}">
+          {{ icon("plus") }}<span>Adicionar produto</span>
+        </a>
+        <details class="user-menu">
+          <summary class="button button-ghost">
+            {{ icon("user", 16) }}<span class="user-email">{{ current_user.email }}</span>
+          </summary>
+          <div class="user-menu-panel">
+            <p class="muted">Alertas de preço vão para<br><strong>{{ current_user.email }}</strong></p>
+            <form method="post" action="{{ url_for('logout') }}">
+              <button type="submit" class="button button-ghost button-small">{{ icon("logout", 16) }}<span>Sair</span></button>
+            </form>
+          </div>
+        </details>
+      {% else %}
+        <a class="button button-ghost" href="{{ url_for('login') }}">Entrar</a>
+        <a class="button" href="{{ url_for('signup') }}">Criar conta</a>
+      {% endif %}
+    </div>
   </header>
 
   <div class="layout">
@@ -49,6 +67,7 @@
         {% endfor %}
       </ul>
 
+      {% if current_user %}
       <details class="new-category">
         <summary class="nav-item nav-item-muted">{{ icon("plus") }}<span class="nav-label">Nova categoria</span></summary>
         <form method="post" action="{{ url_for('create_category') }}" class="new-category-form">
@@ -58,6 +77,7 @@
           <button type="submit" class="button button-small">Criar</button>
         </form>
       </details>
+      {% endif %}
 
       <div class="sidebar-footer">
         <a class="nav-item" href="{{ url_for('settings') }}"

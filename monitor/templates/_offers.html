@@ -36,6 +36,7 @@
       {% if offer.source in ("auto", "capture") and offer.code_matches is none and product.manufacturer_code %}<span class="badge badge-warn">código não confirmado na página</span>{% endif %}
       {% if offer.error %}<span class="badge badge-error">{{ offer.error }}</span>{% endif %}
 
+      {% if current_user %}
       <span class="offer-actions">
         <details class="manual">
           <summary>informar preço</summary>
@@ -50,6 +51,7 @@
           <button type="submit" class="link-button">remover</button>
         </form>
       </span>
+      {% endif %}
     </div>
   </li>
   {% endfor %}

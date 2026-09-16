@@ -15,6 +15,13 @@
   <p class="flash flash-error" role="alert">{{ error }}</p>
 {% endif %}
 
+{% if not current_user %}
+  <div class="empty">
+    <p><strong>Entre na sua conta para mudar as configurações.</strong></p>
+    <a class="button" href="{{ url_for('login', next=url_for('settings')) }}">Entrar</a>
+  </div>
+{% else %}
+
 <form class="card form" method="post" action="{{ url_for('settings') }}">
   <h2>Aparência</h2>
 
@@ -118,6 +125,7 @@
   </a>
   <p class="hint">Nada é salvo sem a sua confirmação. O favorito só lê a página que você já tem aberta.</p>
 </section>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

@@ -40,6 +40,14 @@ PRICE_CHECKS_COLUMNS = (
 PRICE_CHECKS_INDEX = "CREATE INDEX IF NOT EXISTS idx_price_checks_link ON price_checks (link_id, checked_at);"
 
 SCHEMA = """
+-- Accounts. Only the password *hash* is stored, never the password itself.
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT NOT NULL,
+    created_at    TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS categories (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT NOT NULL UNIQUE COLLATE NOCASE,  -- NOCASE: "perfumes" = "Perfumes"
@@ -134,6 +142,34 @@ def _migrate_allow_capture_source(conn: sqlite3.Connection) -> None:
 
 def now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+# ---------- Users ----------
+
+def create_user(conn: sqlite3.Connection, email: str, password_hash: str) -> int:
+    """Save a new account. Raises ValueError when the e-mail is already taken."""
+    try:
+        with conn:
+            cursor = conn.execute(
+                "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+                (email, password_hash, now()),
+            )
+    except sqlite3.IntegrityError:
+        raise ValueError("Já existe uma conta com esse e-mail.") from None
+    return cursor.lastrowid
+
+
+def get_user(conn: sqlite3.Connection, user_id: int) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+
+def get_user_by_email(conn: sqlite3.Connection, email: str) -> sqlite3.Row | None:
+    # The column is COLLATE NOCASE, so "Ana@x.com" finds "ana@x.com".
+    return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+
+def count_users(conn: sqlite3.Connection) -> int:
+    return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
 
 
 # ---------- Categories ----------

@@ -43,6 +43,7 @@
     </div>
 
     <div class="actions">
+      {% if current_user %}
       <form method="post" action="{{ url_for('check_product', product_id=product.id) }}" data-busy="Verificando…">
         <button type="submit" class="button">{{ icon("refresh", 16) }}<span>Verificar preços agora</span></button>
       </form>
@@ -51,6 +52,9 @@
             data-confirm="Remover “{{ product.name }}” e todo o histórico dele?">
         <button type="submit" class="button button-ghost button-danger">{{ icon("trash", 16) }}<span>Excluir</span></button>
       </form>
+      {% else %}
+      <a class="button" href="{{ url_for('login') }}">Entrar para verificar preços</a>
+      {% endif %}
     </div>
   </div>
 </section>
@@ -58,6 +62,7 @@
 <section class="card" id="sources" aria-labelledby="sources-title">
   <div class="section-head">
     <h2 id="sources-title">Fontes e preços</h2>
+    {% if current_user %}
     <details class="add-source">
       <summary class="button button-ghost button-small">{{ icon("plus", 16) }}<span>Adicionar fonte</span></summary>
       <form method="post" action="{{ url_for('add_link', product_id=product.id) }}" class="add-source-form" data-busy="Adicionando…">
@@ -69,6 +74,7 @@
         <p class="hint">Leitura automática: KaBuM!, Terabyte e Amazon. Mercado Livre e Magazine Luiza bloqueiam robôs: use o favorito <a href="{{ url_for('settings', _anchor='capturar-preco') }}">Capturar preço</a> ou “informar preço”.</p>
       </form>
     </details>
+    {% endif %}
   </div>
 
   {% if product.offers %}

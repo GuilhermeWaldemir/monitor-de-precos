@@ -23,7 +23,8 @@ Etapa 8  Animação de pontinhos nas categorias  🔍  210 testes
 Etapa 9  Slider de preço ..................... 🔍  217 testes
 Etapa 10 Favorito "Capturar preço" ........... 🔍  245 testes
 Etapa 11 Git, GitHub e CI .................... ✅  245 testes no GitHub Actions
-Etapa 11+ ver "Próximos passos"
+Etapa 12 Contas (cadastro e login) ........... 🔍  283 testes
+Etapa 13+ ver "Próximos passos"
 ```
 
 ---
@@ -372,6 +373,30 @@ Etapa 11+ ver "Próximos passos"
 
 ---
 
+## Etapa 12: Contas (cadastro e login) 🔍
+*2026-09-16 · 283 testes*
+
+**Objetivo:** primeiro passo do alerta de preço. O aviso precisa ir para o e-mail de alguém, então o site passou a ter contas. (Passo 1 de 3: contas → motor do alerta → envio do e-mail.)
+
+**O que foi adicionado**
+- **Tabela `users`** (e-mail único, *hash* da senha, data de criação). A senha em si nunca é guardada.
+- **`monitor/auth.py`:** regras de e-mail e senha (mínimo de 8 caracteres, confirmação), cadastro, login e a proteção contra *open redirect*.
+- **Telas** `/signup` e `/login` (a mesma página, em dois modos) e o botão **Sair**. No topo aparece o e-mail de quem está logado.
+- **Regra de acesso:** visitante vê tudo, mas **qualquer POST** e as telas que só servem para mudar dados (novo produto, editar, capturar preço) exigem login. Os botões de ação ficam escondidos para visitantes, e o site convida a entrar.
+- **Sessão** guardada num cookie assinado pelo Flask. Ao entrar, a sessão é recriada do zero.
+- **Testes:** o cliente dos testes agora cria conta e entra; e há testes novos para visitante bloqueado, senha errada, e-mail repetido e volta para a página certa depois do login.
+
+**Conceitos para explicar em entrevista**
+- **Hash de senha** (`generate_password_hash`/`check_password_hash`, do Werkzeug): transformação irreversível; quem lê o banco não descobre as senhas.
+- **Mensagem de erro igual** para "e-mail não existe" e "senha errada": mensagens diferentes contariam quem tem conta no site.
+- **`before_request`:** uma única regra central protege todas as rotas que mudam dados, em vez de repetir a verificação em cada uma.
+- **Open redirect:** `?next=` só aceita caminhos internos; senão daria para mandar a pessoa a um site falso logo depois do login.
+- **Session fixation:** a sessão é limpa antes de gravar o novo login.
+
+**Commit sugerido:** `feat: add user accounts (signup, login, logout) and require login to change data`
+
+---
+
 ## Próximos passos
 
 Tarefas do arquivo `mudanças`, feitas **uma por vez**, com revisão entre elas:
@@ -395,7 +420,7 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Instalar o Git e fazer os commits | ✅ 2026-09-14: 6 commits por área (configuração, leitura de preços, banco e lógica, site, testes, documentação) |
 | Criar o repositório no GitHub e enviar (`git push`) | ✅ 2026-09-14: [github.com/GuilhermeWaldemir/monitor-de-precos](https://github.com/GuilhermeWaldemir/monitor-de-precos) |
 | Verificação agendada (algumas vezes por dia) | 💡 |
-| Alerta de queda de preço (e-mail ou Telegram) | 💡 |
+| **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): passo 1 contas ✅ · passo 2 motor do alerta (queda de 4%) ⏳ · passo 3 envio por SMTP | 🔍 |
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | Deploy com modo demonstração | 💡 |
 | README bilíngue com GIF | 💡 |

@@ -8,9 +8,9 @@ from contextlib import closing
 from datetime import datetime
 from decimal import Decimal
 
-from flask import Flask, abort, flash, g, redirect, render_template, request, url_for
+from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 
-from monitor import checker, compare, db, history
+from monitor import auth, checker, compare, db, history
 from monitor.capture import bookmarklet_href, read_captured
 from monitor.fetcher import fetch_html
 from monitor.matching import code_matches
@@ -39,6 +39,11 @@ FONT_OPTIONS = [
     for value in CHOICES["font"]
 ]
 
+# Anyone can browse the site. Changing anything needs an account (see require_login below).
+PUBLIC_ENDPOINTS = {"static", "login", "signup"}
+# Pages that only exist to change data, so they need an account even being a GET.
+PAGES_THAT_NEED_LOGIN = {"new_product", "edit_product", "capture_page"}
+
 
 def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
     """Build the app. Tests pass a temporary database and a fake `fetch`."""
@@ -62,6 +67,73 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
         if conn is not None:
             conn.close()
 
+    # ---------- Accounts ----------
+
+    def current_user():
+        """The logged-in user (a row) or None. Read once per request."""
+        if "user" not in g:
+            user_id = session.get("user_id")
+            g.user = db.get_user(get_conn(), user_id) if user_id else None
+        return g.user
+
+    @app.before_request
+    def require_login_to_change_things():
+        """Visitors can look around; everything that changes data needs an account."""
+        if current_user() is not None or request.endpoint in PUBLIC_ENDPOINTS:
+            return None
+        if request.method == "POST" or request.endpoint in PAGES_THAT_NEED_LOGIN:
+            flash("Entre na sua conta para fazer isso.", "error")
+            return redirect(url_for("login", next=request.path))
+        return None
+
+    @app.route("/signup", methods=["GET", "POST"])
+    def signup():
+        if request.method == "GET":
+            return render_template("auth.html", mode="signup", form={})
+        try:
+            user_id = auth.register(
+                get_conn(),
+                request.form.get("email", ""),
+                request.form.get("password", ""),
+                request.form.get("password_confirm", ""),
+            )
+        except ValueError as error:
+            return render_template("auth.html", mode="signup", form=request.form, error=str(error)), 400
+
+        _start_session(user_id)
+        flash("Conta criada. Os alertas de preço vão para esse e-mail.", "ok")
+        return redirect(url_for("index"))
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        next_path = auth.safe_next_path(request.values.get("next"))
+        if request.method == "GET":
+            return render_template("auth.html", mode="login", form={}, next_path=next_path)
+
+        user = auth.authenticate(get_conn(), request.form.get("email", ""), request.form.get("password"))
+        if user is None:
+            return render_template(
+                "auth.html", mode="login", form=request.form, next_path=next_path,
+                error="E-mail ou senha incorretos.",
+            ), 400
+
+        _start_session(user["id"])
+        flash(f"Bem-vindo de volta, {user['email']}.", "ok")
+        return redirect(next_path or url_for("index"))
+
+    @app.post("/logout")
+    def logout():
+        session.clear()
+        g.pop("user", None)
+        flash("Você saiu da sua conta.", "ok")
+        return redirect(url_for("index"))
+
+    def _start_session(user_id: int) -> None:
+        # clear() first: a brand new session id for the new login (avoids session fixation).
+        session.clear()
+        session["user_id"] = user_id
+        g.pop("user", None)
+
     # ---------- Template helpers ----------
 
     @app.context_processor
@@ -73,6 +145,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
             "total_products": sum(c["product_count"] for c in categories),
             "settings": load_settings(get_conn()),
             "category_icons": CATEGORY_ICONS,  # for the icon picker (sidebar and category page)
+            "current_user": current_user(),
         }
 
     @app.template_filter("brl")

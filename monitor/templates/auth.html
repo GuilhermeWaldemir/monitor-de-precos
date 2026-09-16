@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{#- The same page serves "Criar conta" (mode="signup") and "Entrar" (mode="login"). -#}
+{% set signing_up = mode == "signup" %}
+
+{% block title %}{{ "Criar conta" if signing_up else "Entrar" }} · Monitor de Preços{% endblock %}
+
+{% block content %}
+<div class="auth">
+  <section class="card auth-card">
+    <h1>{{ "Criar conta" if signing_up else "Entrar" }}</h1>
+    <p class="muted">
+      {% if signing_up %}
+        O seu e-mail recebe o aviso quando o preço de um produto cair 4% ou mais.
+      {% else %}
+        Entre para cadastrar produtos, verificar preços e receber alertas.
+      {% endif %}
+    </p>
+
+    {% if error %}<p class="flash flash-error" role="alert">{{ error }}</p>{% endif %}
+
+    <form class="form" method="post"
+          action="{{ url_for('signup') if signing_up else url_for('login', next=next_path) }}">
+      <label for="email">E-mail</label>
+      <input id="email" name="email" type="email" value="{{ form.get('email', '') }}"
+             autocomplete="email" required autofocus>
+
+      <label for="password">Senha</label>
+      <input id="password" name="password" type="password" minlength="8" required
+             autocomplete="{{ 'new-password' if signing_up else 'current-password' }}">
+      {% if signing_up %}
+        <p class="hint">Pelo menos 8 caracteres.</p>
+
+        <label for="password_confirm">Repita a senha</label>
+        <input id="password_confirm" name="password_confirm" type="password" minlength="8" required
+               autocomplete="new-password">
+      {% endif %}
+
+      <div class="form-actions">
+        <button type="submit" class="button">{{ "Criar conta" if signing_up else "Entrar" }}</button>
+      </div>
+    </form>
+
+    <p class="auth-switch muted">
+      {% if signing_up %}
+        Já tem conta? <a href="{{ url_for('login') }}">Entrar</a>
+      {% else %}
+        Ainda não tem conta? <a href="{{ url_for('signup') }}">Criar conta</a>
+      {% endif %}
+    </p>
+  </section>
+</div>
+{% endblock %}

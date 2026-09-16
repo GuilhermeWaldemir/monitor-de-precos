@@ -20,6 +20,8 @@ from tests.helpers import (
 from tests.test_checker_and_compare import fake_fetch
 
 RAM_NAME = "Memória Kingston Fury Beast 16GB DDR4 3200MHz"
+TEST_EMAIL = "guilherme@exemplo.com"
+TEST_PASSWORD = "senha-de-teste"
 
 
 def fetch_with_amazon(url):
@@ -34,10 +36,21 @@ def db_path(tmp_path):
 
 
 @pytest.fixture
-def client(db_path):
+def anonymous_client(db_path):
+    """A visitor: can look around, but cannot change anything."""
     app = create_app(db_path=db_path, fetch=fetch_with_amazon)
     app.config["TESTING"] = True
     return app.test_client()
+
+
+@pytest.fixture
+def client(anonymous_client):
+    """Logged in, because almost every test below changes something."""
+    anonymous_client.post(
+        "/signup",
+        data={"email": TEST_EMAIL, "password": TEST_PASSWORD, "password_confirm": TEST_PASSWORD},
+    )
+    return anonymous_client
 
 
 def add_ram(client, **overrides):

@@ -22,7 +22,7 @@
     <p class="muted">{{ products|length }} {{ "produto" if products|length == 1 else "produtos" }}</p>
   </div>
 
-  {% if category %}
+  {% if category and current_user %}
   <div class="page-actions">
     <details class="edit-category">
       <summary class="button button-ghost button-small">{{ icon("pencil", 16) }}<span>Editar</span></summary>
@@ -80,9 +80,13 @@
     {{ icon("package", 40) }}
     <p><strong>Nenhum produto {{ "nesta categoria" if category else "ainda" }}.</strong></p>
     <p class="muted">Cadastre um produto com o link dele em cada loja para comparar os preços.</p>
-    <a class="button" href="{{ url_for('new_product', category=category.id if category else none) }}">
-      {{ icon("plus") }}<span>Adicionar produto{{ " nesta categoria" if category }}</span>
-    </a>
+    {% if current_user %}
+      <a class="button" href="{{ url_for('new_product', category=category.id if category else none) }}">
+        {{ icon("plus") }}<span>Adicionar produto{{ " nesta categoria" if category }}</span>
+      </a>
+    {% else %}
+      <a class="button" href="{{ url_for('login') }}">Entrar para cadastrar</a>
+    {% endif %}
   </div>
 {% endif %}
 {% endblock %}

@@ -274,6 +274,30 @@ img { max-width: 100%; }
 .search input:not(:placeholder-shown) ~ .search-key,
 .search input:focus ~ .search-key { display: none; }
 
+/* ---------- Account (top bar menu and the login/signup page) ---------- */
+.topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+.user-menu { position: relative; }
+.user-menu summary { list-style: none; }
+.user-menu summary::-webkit-details-marker { display: none; }
+.user-email { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.user-menu-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  display: grid; gap: var(--space-3);
+  min-width: 240px; padding: var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); box-shadow: var(--shadow);
+  font-size: 0.9rem;
+}
+.user-menu-panel p { margin: 0; }
+
+.auth { display: grid; place-items: start center; padding-top: var(--space-6); }
+.auth-card { width: min(420px, 100%); display: grid; gap: var(--space-2); }
+.auth-card h1 { margin-bottom: var(--space-1); }
+.auth-card .form { margin-top: var(--space-3); }
+.auth-switch { margin-top: var(--space-4); font-size: 0.9rem; }
+
 .layout {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
