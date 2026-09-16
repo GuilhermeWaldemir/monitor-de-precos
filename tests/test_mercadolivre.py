@@ -262,11 +262,42 @@ def test_stock_comes_from_status_and_quantity(conn, changes, expected_stock):
     assert info.in_stock is expected_stock
 
 
-def test_catalog_without_a_winning_offer(conn):
+def test_catalog_without_a_winning_offer_uses_the_cheapest_new_seller(conn):
+    """Real case (perfume, 2026-09-16): buy_box_winner was null but 30 sellers had prices."""
     api = connect(conn)
-    api.answers = {"https://api.mercadolibre.com/products/MLB18623867": {**CATALOG_ANSWER, "buy_box_winner": None}}
+    api.answers = {
+        "https://api.mercadolibre.com/products/MLB18623867": {**CATALOG_ANSWER, "buy_box_winner": None},
+        "https://api.mercadolibre.com/products/MLB18623867/items": {
+            "results": [
+                {"item_id": "MLB1", "price": Decimal("51.90"), "condition": "new", "available_quantity": None},
+                {"item_id": "MLB2", "price": Decimal("30.00"), "condition": "used"},  # used: ignored
+                {"item_id": "MLB3", "price": Decimal("45.90"), "condition": "new", "available_quantity": None},
+                {"item_id": "MLB4", "price": None},  # no price: ignored
+            ]
+        },
+    }
 
-    with pytest.raises(MercadoLivreError, match="sem oferta vencedora"):
+    info = mercadolivre.read_product(conn, CATALOG_URL, CREDENTIALS, api.get_json, api.post_form)
+
+    assert info.price == Decimal("45.90")  # cheapest NEW offer
+    assert info.in_stock is None  # the API hid the quantity: unknown, not "out of stock"
+    assert info.name == "Memória Kingston Fury Beast 16GB DDR4"
+
+
+def test_catalog_with_no_offers_at_all(conn):
+    api = connect(conn)
+    api.answers = {
+        "https://api.mercadolibre.com/products/MLB18623867": {**CATALOG_ANSWER, "buy_box_winner": None},
+        "https://api.mercadolibre.com/products/MLB18623867/items": {"results": []},
+    }
+    with pytest.raises(MercadoLivreError, match="sem nenhuma oferta"):
+        mercadolivre.read_product(conn, CATALOG_URL, CREDENTIALS, api.get_json, api.post_form)
+
+
+def test_catalog_product_that_no_longer_exists(conn):
+    """Real case (RAM, 2026-09-16): the catalog page MLB18623867 was removed."""
+    api = connect(conn)  # no answers: the fake API says "não encontrado"
+    with pytest.raises(MercadoLivreError, match="não existe mais no catálogo"):
         mercadolivre.read_product(conn, CATALOG_URL, CREDENTIALS, api.get_json, api.post_form)
 
 

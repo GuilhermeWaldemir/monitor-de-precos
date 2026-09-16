@@ -485,6 +485,8 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 **Commit sugerido:** `feat: read Mercado Livre prices through the official API (OAuth)`
 
+**Conexão real (mesmo dia):** foram quatro erros até funcionar — credenciais confirmadas com um código falso, PKCE, token sem `refresh_token` (falta `offline_access`), catálogo sem oferta em destaque e um link de catálogo que deixou de existir. Detalhes no *Problema 13*. Resultado: os perfumes passaram a ser lidos pela API oficial.
+
 ---
 
 ## Etapa 16: Verificação agendada (todo dia às 12:30) 🔍

@@ -246,8 +246,23 @@ def read_product(
 
     kind, resource_id = resource
     token = access_token(conn, credentials, post_form)
-    data = _get_json(f"{API_URL}/{kind}/{resource_id}", token, get_json)
-    return _product_info(data) if kind == "items" else _catalog_info(data)
+    if kind == "items":
+        return _product_info(_get_json(f"{API_URL}/items/{resource_id}", token, get_json))
+
+    try:
+        product = _get_json(f"{API_URL}/products/{resource_id}", token, get_json)
+    except MercadoLivreError as error:
+        if "não encontrado" in str(error):
+            raise MercadoLivreError(
+                "Esse produto não existe mais no catálogo do Mercado Livre. Troque o link por um atual."
+            ) from None
+        raise
+
+    if not _price((product.get("buy_box_winner") or {}).get("price")):
+        # No featured offer: look at every seller's offer for this catalog product.
+        offers = _get_json(f"{API_URL}/products/{resource_id}/items", token, get_json)
+        product = {**product, "buy_box_winner": _cheapest_new_offer(offers)}
+    return _catalog_info(product)
 
 
 def _product_info(item: dict) -> ProductInfo:
@@ -266,18 +281,33 @@ def _product_info(item: dict) -> ProductInfo:
     )
 
 
+def _cheapest_new_offer(offers: dict) -> dict | None:
+    """The cheapest offer among the sellers of a catalog product, skipping used items.
+
+    `/products/{id}/items` lists every seller; the comparator wants the lowest price for
+    the same NEW product (a used one would be an unfair comparison).
+    """
+    candidates = [
+        offer for offer in (offers or {}).get("results") or []
+        if _price(offer.get("price")) and offer.get("condition", "new") == "new"
+    ]
+    return min(candidates, key=lambda offer: _price(offer["price"]), default=None)
+
+
 def _catalog_info(product: dict) -> ProductInfo:
-    """Catalog page (/products/MLB...): the winning offer is in `buy_box_winner`."""
+    """Catalog page (/products/MLB...): the offer is `buy_box_winner` (or the cheapest seller)."""
     winner = product.get("buy_box_winner") or {}
     price = _price(winner.get("price"))
     if price is None:
-        raise MercadoLivreError("Esse produto do catálogo está sem oferta vencedora no momento.")
+        raise MercadoLivreError("Esse produto do catálogo está sem nenhuma oferta à venda no momento.")
     pictures = product.get("pictures") or []
+    # Some answers hide the quantity (None): unknown stock, not "out of stock".
+    quantity = winner.get("available_quantity")
     return ProductInfo(
         name=str(product.get("name", "")).strip(),
         price=price,
         image_url=(pictures[0].get("secure_url") or pictures[0].get("url")) if pictures else None,
-        in_stock=int(winner.get("available_quantity") or 0) > 0,
+        in_stock=None if quantity is None else int(quantity) > 0,
         mpn=_attribute(product, "MPN", "PART_NUMBER"),
         gtin=_attribute(product, "GTIN", "EAN"),
     )

@@ -104,3 +104,14 @@ Formato: **Problema → Processo → Solução → Resultado**.
   2. **favorito "Capturar preço"**, em que a pessoa abre a página e captura o preço que ela mesma está vendo;
   3. **preço manual**, o caminho simples que sempre funciona.
 - **Resultado:** o Mercado Livre saiu do grupo "bloqueado" e passou a ser lido oficialmente. Magazine Luiza e Pichau seguem pela captura, com o motivo documentado no card e aqui. Lojas que publicam os dados (KaBuM!, Terabyte, Amazon, promofarma) continuam automáticas.
+
+## 13. Conectar a API do Mercado Livre na prática: quatro erros em sequência
+*2026-09-16*
+
+- **Problema:** o código da integração passava em todos os testes (com uma API falsa), mas a conexão real falhou várias vezes, cada vez de um jeito.
+- **Processo e solução, erro por erro:**
+  1. **"Recusou a autorização. Confira App ID, Secret Key e URL"** (mensagem genérica). Em vez de pedir para conferir tudo às cegas, mandei ao Mercado Livre um pedido com um **código falso de propósito**. A resposta foi `invalid_grant` e não `invalid_client`, o que **provou** que App ID e Secret Key estavam certos. Para não depender mais de adivinhação, a mensagem passou a mostrar o erro real devolvido pela API. Também ativei **PKCE** (um segredo aleatório guardado no servidor, cujo SHA-256 vai no link de autorização), que o Mercado Livre suporta e é a prática recomendada.
+  2. **"Resposta inesperada ao pedir o token."** Dessa vez o Mercado Livre **aceitou** o código, mas não mandou o `refresh_token`: ele só vem quando a aplicação tem a permissão `offline_access`. O código exigia esse campo. Agora o token é salvo mesmo assim (vale 6 horas), a tela avisa como ativar a renovação automática, e o erro diz **quais campos** faltaram (só os nomes, nunca os valores, que são segredos).
+  3. **Perfumes: "catálogo sem oferta vencedora".** A API devolvia o produto com `buy_box_winner: null`, mas `/products/{id}/items` listava 30 vendedores com preço. Agora, sem oferta em destaque, o site usa a **oferta nova mais barata** (usados ficam de fora para a comparação ser justa). Quando a API esconde a quantidade, o estoque fica "desconhecido", e não "esgotado".
+  4. **Memória RAM: `Product not found`.** A página de catálogo `MLB18623867`, cadastrada dois dias antes, **deixou de existir** no Mercado Livre. Não há o que o código faça: a mensagem agora diz para trocar o link por um atual.
+- **Resultado:** os dois perfumes passaram a ser lidos pela API oficial (R$ 51,90 e R$ 44,55). Lições: **teste com a API de verdade o quanto antes**, porque dublês de teste só reproduzem o que a gente já imagina; e **mensagens de erro precisas** encurtam a depuração mais do que qualquer outra coisa.
