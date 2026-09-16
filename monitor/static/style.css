@@ -411,6 +411,14 @@ details > summary.button::-webkit-details-marker { display: none; }
 .flashes { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: grid; gap: var(--space-2); }
 .flash { padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); }
 .flash-error { background: var(--error-soft); color: var(--error); }
+/* Price drop: the good news of this site, so it stands out more than a normal message. */
+.flash-drop { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+.drops { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.drop { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); }
+.drop-prices { font-variant-numeric: tabular-nums; }
+.drop-prices s { color: var(--muted); }
+.badge-drop { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .flash a { color: inherit; font-weight: 600; }
 
 /* ---------- Page header ---------- */

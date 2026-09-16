@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 
-from monitor import auth, checker, compare, db, history
+from monitor import alerts, auth, checker, compare, db, history
 from monitor.capture import bookmarklet_href, read_captured
 from monitor.fetcher import fetch_html
 from monitor.matching import code_matches
@@ -156,6 +156,11 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
     def when_filter(value: datetime) -> str:
         return value.strftime("%d/%m às %H:%M")
 
+    @app.template_filter("percent")
+    def percent_filter(value) -> str:
+        """Decimal("5.2") -> "5,2%" (in Portuguese the decimal mark is a comma)."""
+        return f"{value}".replace(".", ",") + "%"
+
     # ---------- Product grid ----------
 
     def render_grid(products, **context):
@@ -282,6 +287,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
             return form_again(error=str(error))
 
         _flash_results(checker.check_product(conn, product_id, fetch=fetch))
+        _announce_price_drop(product_id)
         return redirect(url_for("product_page", product_id=product_id))
 
     @app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
@@ -330,6 +336,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
                 category_id=product["category_id"], exclude_id=product_id,
             ),
             chart=history.chart_data(db.price_history(conn, product_id)),
+            drops=alerts.recent_drops(conn, product),
             active_category_id=product["category_id"],
         )
 
@@ -337,6 +344,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
     def check_product(product_id: int):
         _get_or_404(db.get_product, product_id)
         _flash_results(checker.check_product(get_conn(), product_id, fetch=fetch))
+        _announce_price_drop(product_id)
         return redirect(url_for("product_page", product_id=product_id))
 
     @app.post("/products/<int:product_id>/delete")
@@ -358,6 +366,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
             flash(str(error), "error")
         else:
             _flash_results([checker.check_link(conn, link_id, fetch=fetch)])
+            _announce_price_drop(product_id)
         return redirect(url_for("product_page", product_id=product_id, _anchor="sources"))
 
     @app.post("/links/<int:link_id>/delete")
@@ -378,6 +387,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
         else:
             db.add_price_check(conn, link_id, source="manual", price=price)
             flash(f"Preço da {link['store']} salvo: {format_brl(price)}.", "ok")
+            _announce_price_drop(link["product_id"])
         return redirect(url_for("product_page", product_id=link["product_id"], _anchor="sources"))
 
     # ---------- "Capturar preço" bookmarklet ----------
@@ -422,6 +432,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
         if page.image_url:
             db.set_image_if_missing(conn, link["product_id"], page.image_url)
         flash(f"Preço da {link['store']} capturado: {format_brl(price)}.", "ok")
+        _announce_price_drop(link["product_id"])
         return redirect(url_for("product_page", product_id=link["product_id"], _anchor="sources"))
 
     def render_capture(values, error=None):
@@ -482,6 +493,19 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
         if item is None:
             abort(404)
         return item
+
+    def _announce_price_drop(product_id: int) -> None:
+        """After new prices are saved: warn when the best price dropped 4% or more.
+
+        Step 3 will also send this as an e-mail to the accounts.
+        """
+        drop = alerts.check_product_for_drop(get_conn(), product_id)
+        if drop is not None:
+            flash(
+                f"Caiu {percent_filter(drop.percent)}! {drop.product_name}: "
+                f"{format_brl(drop.old_price)} → {format_brl(drop.new_price)} na {drop.store}.",
+                "drop",
+            )
 
     def _flash_results(results) -> None:
         for result in results:

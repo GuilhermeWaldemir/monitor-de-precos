@@ -127,6 +127,24 @@
   {% endif %}
 </section>
 
+{% if drops %}
+<section class="card" aria-labelledby="drops-title">
+  <div class="section-head">
+    <h2 id="drops-title">Quedas de preço</h2>
+  </div>
+  <ul class="drops">
+    {% for drop in drops %}
+      <li class="drop">
+        <span class="badge badge-drop">−{{ drop.percent|percent }}</span>
+        <span class="drop-prices"><s>{{ drop.old_price|brl }}</s> → <strong>{{ drop.new_price|brl }}</strong></span>
+        <span class="muted">na {{ drop.store }} · {{ drop.created_at|when }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+  <p class="hint">O site registra uma queda quando o melhor preço cai 4% ou mais em relação ao último preço de referência.</p>
+</section>
+{% endif %}
+
 {% if similar %}
 <section class="similar" aria-labelledby="similar-title">
   <h2 id="similar-title">Produtos parecidos na sua lista</h2>

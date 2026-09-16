@@ -23,8 +23,9 @@ Etapa 8  Animação de pontinhos nas categorias  🔍  210 testes
 Etapa 9  Slider de preço ..................... 🔍  217 testes
 Etapa 10 Favorito "Capturar preço" ........... 🔍  245 testes
 Etapa 11 Git, GitHub e CI .................... ✅  245 testes no GitHub Actions
-Etapa 12 Contas (cadastro e login) ........... 🔍  283 testes
-Etapa 13+ ver "Próximos passos"
+Etapa 12 Contas (cadastro e login) ........... ✅  283 testes
+Etapa 13 Motor do alerta (queda de 4%) ....... 🔍  298 testes
+Etapa 14+ ver "Próximos passos"
 ```
 
 ---
@@ -373,7 +374,7 @@ Etapa 13+ ver "Próximos passos"
 
 ---
 
-## Etapa 12: Contas (cadastro e login) 🔍
+## Etapa 12: Contas (cadastro e login) ✅
 *2026-09-16 · 283 testes*
 
 **Objetivo:** primeiro passo do alerta de preço. O aviso precisa ir para o e-mail de alguém, então o site passou a ter contas. (Passo 1 de 3: contas → motor do alerta → envio do e-mail.)
@@ -394,6 +395,37 @@ Etapa 13+ ver "Próximos passos"
 - **Session fixation:** a sessão é limpa antes de gravar o novo login.
 
 **Commit sugerido:** `feat: add user accounts (signup, login, logout) and require login to change data`
+
+---
+
+## Etapa 13: Motor do alerta (queda de 4%) 🔍
+*2026-09-16 · 298 testes*
+
+**Objetivo:** decidir quando uma queda de preço merece aviso e registrar isso. (Passo 2 de 3 do alerta; o e-mail vem no passo 3.)
+
+**Como a regra funciona**
+Cada produto guarda um **preço de referência** (`products.alert_reference_cents`), o último melhor preço que o alerta olhou. Depois de cada verificação:
+
+| Situação | O que acontece |
+|---|---|
+| Primeiro preço do produto | Só guarda a referência |
+| Preço subiu | A referência sobe junto |
+| Caiu menos de 4% | Nada, e a referência **continua a mesma** (quedas pequenas se somam) |
+| Caiu 4% ou mais | Registra a queda e o preço novo vira a referência (não repete o aviso) |
+
+**O que foi adicionado**
+- **`monitor/alerts.py`:** `check_product_for_drop` (a regra acima) e `recent_drops` (as quedas já registradas). Usa o mesmo "melhor preço" da tela do produto, então oferta sem estoque ou com código diferente não conta.
+- **Tabela `price_alerts`** (produto, data, preço antigo, preço novo, loja e `emailed_at`, ainda vazio) e a coluna nova em `products`, criada por **migração** com `ALTER TABLE ADD COLUMN`.
+- **No site:** ao verificar preços, informar um preço ou capturar da página, uma faixa verde anuncia "Caiu 14,0%! …". A tela do produto ganhou a seção **Quedas de preço**, com histórico.
+- **Testes (15 novos):** primeiro preço, queda pequena, quedas que se somam, exatamente 4%, preço subindo, loja mais barata assumindo o melhor preço, sem estoque, não repetir aviso e a migração do banco antigo.
+
+**Conceitos para explicar em entrevista**
+- **Referência móvel:** comparar sempre com o último preço "oficial" evita tanto o spam de avisos quanto perder quedas graduais.
+- **`ALTER TABLE ADD COLUMN`:** a mudança de tabela que o SQLite aceita direto, diferente de mudar um `CHECK` (*Problema 11*).
+- **Porcentagem com `Decimal`:** a conta da queda também usa `Decimal`, e o arredondamento para uma casa decimal só acontece na hora de mostrar.
+- **Mensagens *flash* ficam guardadas na sessão** até alguma página mostrá-las (um teste falhou por causa disso).
+
+**Commit sugerido:** `feat: detect price drops of 4% or more and show them on the product page`
 
 ---
 
@@ -420,7 +452,7 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Instalar o Git e fazer os commits | ✅ 2026-09-14: 6 commits por área (configuração, leitura de preços, banco e lógica, site, testes, documentação) |
 | Criar o repositório no GitHub e enviar (`git push`) | ✅ 2026-09-14: [github.com/GuilhermeWaldemir/monitor-de-precos](https://github.com/GuilhermeWaldemir/monitor-de-precos) |
 | Verificação agendada (algumas vezes por dia) | 💡 |
-| **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): passo 1 contas ✅ · passo 2 motor do alerta (queda de 4%) ⏳ · passo 3 envio por SMTP | 🔍 |
+| **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): passo 1 contas ✅ · passo 2 motor do alerta ✅ · passo 3 envio por SMTP ⏳ | 🔍 |
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | Deploy com modo demonstração | 💡 |
 | README bilíngue com GIF | 💡 |

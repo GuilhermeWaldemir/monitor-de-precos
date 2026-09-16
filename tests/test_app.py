@@ -509,6 +509,37 @@ def test_turning_category_animation_off_removes_banner(client):
     assert "js/dot-transition.js" not in page
 
 
+# ---------- Price drop alerts ----------
+
+def test_price_drop_is_announced_and_listed_on_the_product_page(client):
+    add_ram(client)  # first check: KaBuM! R$ 929,99 becomes the reference price
+
+    response = client.post("/links/2/manual-price", data={"price": "800,00"}, follow_redirects=True)
+
+    assert "Caiu 14,0%!" in response.text
+    assert "R$ 929,99 → R$ 800,00 na Terabyte" in response.text
+    assert "Quedas de preço" in response.text  # the section with the history of drops
+    assert "−14,0%" in response.text
+
+
+def test_small_drop_is_not_announced(client):
+    add_ram(client)
+    response = client.post("/links/2/manual-price", data={"price": "910,00"}, follow_redirects=True)
+
+    assert "Caiu" not in response.text
+    assert "Quedas de preço" not in response.text
+
+
+def test_checking_prices_again_does_not_repeat_the_alert(client):
+    add_ram(client)
+    # follow_redirects so the "Caiu..." message is shown (and cleared) now, not on the next page.
+    client.post("/links/2/manual-price", data={"price": "800,00"}, follow_redirects=True)
+
+    response = client.post("/products/1/check", follow_redirects=True)
+    assert "Caiu" not in response.text
+    assert response.text.count("−14,0%") == 1  # still only the first drop
+
+
 # ---------- "Capturar preço" bookmarklet ----------
 
 ML_PAGE = "https://www.mercadolivre.com.br/memoria-kingston/p/MLB18623867?pdp_filters=item_id"

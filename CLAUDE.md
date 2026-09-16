@@ -80,6 +80,7 @@ monitor-de-precos/
 │   ├── capture.py      # favorito "Capturar preço": gera o link javascript: e valida o que ele envia
 │   ├── search.py       # barra de pesquisa (nome sem acentos, parte da palavra, código/EAN)
 │   ├── auth.py         # contas: regras de e-mail/senha, cadastro, login (hash do Werkzeug)
+│   ├── alerts.py       # regra da queda de 4% (preço de referência por produto) e histórico de quedas
 │   ├── templates/      # base (layout+barra lateral), index (grade), product, product_form, settings, parciais _*.html
 │   └── static/         # style.css, js/product-chart.js, vendor/chart.umd.min.js, fonts/ (self-hosted, OFL)
 ├── tests/
@@ -90,7 +91,7 @@ monitor-de-precos/
 └── docs/problemas-resolvidos.md
 ```
 
-**Banco (SQLite):** `categories` (nome único, ícone) → `products` (categoria, nome, código opcional, foto) → `links` (loja, URL) → `price_checks` (uma linha por verificação: `price_cents`, `in_stock`, `source` auto/manual/capture, `page_title`, `page_code`, `page_gtin`, `error`). Nada é sobrescrito: `price_checks` é o histórico. Preço em **centavos inteiros** porque o SQLite não tem decimal. `settings` (`key`, `value`) guarda as Configurações do site (tema, fonte, animações), uma linha por opção; todas as opções de um POST são gravadas juntas com UPSERT, numa única transação.
+**Banco (SQLite):** `categories` (nome único, ícone) → `products` (categoria, nome, código opcional, foto) → `links` (loja, URL) → `price_checks` (uma linha por verificação: `price_cents`, `in_stock`, `source` auto/manual/capture, `page_title`, `page_code`, `page_gtin`, `error`). `price_alerts` guarda cada queda de 4%+ (preço antigo, novo, loja, `emailed_at`), e `products.alert_reference_cents` é o preço de referência do alerta. Nada é sobrescrito: `price_checks` é o histórico. Preço em **centavos inteiros** porque o SQLite não tem decimal. `settings` (`key`, `value`) guarda as Configurações do site (tema, fonte, animações), uma linha por opção; todas as opções de um POST são gravadas juntas com UPSERT, numa única transação.
 
 **Testes sem internet:** `checker.check_product` e `create_app` recebem uma função `fetch`. Nos testes, ela devolve HTML salvo em vez de acessar as lojas.
 

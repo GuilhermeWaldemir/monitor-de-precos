@@ -7,7 +7,7 @@ from pathlib import Path
 
 from monitor.icons import CATEGORY_ICONS, DEFAULT_CATEGORY_ICON
 from monitor.matching import normalize_code
-from monitor.prices import to_cents
+from monitor.prices import from_cents, to_cents
 from monitor.stores import link_key, store_name_from_url
 
 DEFAULT_DB_PATH = Path("data") / "monitor.db"
@@ -56,12 +56,25 @@ CREATE TABLE IF NOT EXISTS categories (
 );
 
 CREATE TABLE IF NOT EXISTS products (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    category_id       INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
-    name              TEXT NOT NULL,
-    manufacturer_code TEXT,  -- manufacturer code or EAN; optional
-    image_url         TEXT,
-    created_at        TEXT NOT NULL
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id            INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    name                   TEXT NOT NULL,
+    manufacturer_code      TEXT,  -- manufacturer code or EAN; optional
+    image_url              TEXT,
+    created_at             TEXT NOT NULL,
+    -- Price the next drop is measured against (monitor/alerts.py). NULL until the first price.
+    alert_reference_cents  INTEGER
+);
+
+-- One row per price drop big enough to warn about (4% or more).
+CREATE TABLE IF NOT EXISTS price_alerts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id      INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at      TEXT NOT NULL,
+    old_price_cents INTEGER NOT NULL,  -- the reference price before the drop
+    new_price_cents INTEGER NOT NULL,
+    store           TEXT NOT NULL,     -- store with the new best price
+    emailed_at      TEXT               -- NULL while the e-mail has not been sent
 );
 
 CREATE TABLE IF NOT EXISTS links (
@@ -81,6 +94,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_category ON products (category_id);
+CREATE INDEX IF NOT EXISTS idx_price_alerts_product ON price_alerts (product_id, created_at);
 {price_checks_index}
 """.format(
     price_checks_table=PRICE_CHECKS_TABLE.format(name="price_checks"),
@@ -100,6 +114,7 @@ def connect(path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
     _migrate_allow_capture_source(conn)
+    _migrate_add_alert_reference(conn)
     if conn.execute("SELECT COUNT(*) FROM categories").fetchone()[0] == 0:
         with conn:
             conn.executemany(
@@ -138,6 +153,18 @@ def _migrate_allow_capture_source(conn: sqlite3.Connection) -> None:
         raise
     finally:
         conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _migrate_add_alert_reference(conn: sqlite3.Connection) -> None:
+    """Migration: databases created before the price alerts have no `alert_reference_cents`.
+
+    Adding a column is the one table change SQLite does directly (`ALTER TABLE ADD COLUMN`),
+    so no table rebuild is needed here — unlike changing a CHECK constraint.
+    """
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(products)")]
+    if "alert_reference_cents" not in columns:
+        with conn:
+            conn.execute("ALTER TABLE products ADD COLUMN alert_reference_cents INTEGER")
 
 
 def now() -> str:
@@ -475,6 +502,47 @@ def price_history(conn: sqlite3.Connection, product_id: int) -> list[sqlite3.Row
 
 
 # ---------- Settings ----------
+
+# ---------- Price alerts ----------
+
+def get_alert_reference(conn: sqlite3.Connection, product_id: int) -> Decimal | None:
+    """Price the next drop is measured against. None when the product never had a price."""
+    row = conn.execute(
+        "SELECT alert_reference_cents FROM products WHERE id = ?", (product_id,)
+    ).fetchone()
+    if row is None or row["alert_reference_cents"] is None:
+        return None
+    return from_cents(row["alert_reference_cents"])
+
+
+def set_alert_reference(conn: sqlite3.Connection, product_id: int, price: Decimal) -> None:
+    with conn:
+        conn.execute(
+            "UPDATE products SET alert_reference_cents = ? WHERE id = ?", (to_cents(price), product_id)
+        )
+
+
+def add_price_alert(
+    conn: sqlite3.Connection, product_id: int, *, old_price: Decimal, new_price: Decimal, store: str
+) -> int:
+    with conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO price_alerts (product_id, created_at, old_price_cents, new_price_cents, store)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (product_id, now(), to_cents(old_price), to_cents(new_price), store),
+        )
+    return cursor.lastrowid
+
+
+def list_price_alerts(conn: sqlite3.Connection, product_id: int, limit: int = 10) -> list[sqlite3.Row]:
+    """Price drops of one product, newest first."""
+    return conn.execute(
+        "SELECT * FROM price_alerts WHERE product_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+        (product_id, limit),
+    ).fetchall()
+
 
 def get_settings_rows(conn: sqlite3.Connection) -> dict[str, str]:
     """Every saved setting as {key: value}. Options never saved simply don't appear here."""
