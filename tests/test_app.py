@@ -489,11 +489,11 @@ def test_every_page_has_the_logo_and_the_favicon(anonymous_client):
     static = Path(__file__).parent.parent / "monitor" / "static"
     assert (static / "logo-mark.svg").is_file()
     assert (static / "logo.svg").is_file()  # full logo, used in the README
-    for name in ["logo.png", "logo-mark-32.png", "logo-mark-64.png", "logo-mark-128.png",
-                 "logo-mark-256.png", "logo-mark-512.png"]:
-        png = static / name
-        assert png.is_file() and png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", name
-        assert png.stat().st_size > 800, f"{name} parece estar em branco"  # blank renders are tiny
+    # The full logo lives in the project root (it is the README's image); the icons in static/.
+    icons = ["logo-mark-32.png", "logo-mark-64.png", "logo-mark-128.png", "logo-mark-256.png", "logo-mark-512.png"]
+    for png in [static.parent.parent / "logo.png"] + [static / name for name in icons]:
+        assert png.is_file() and png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", png.name
+        assert png.stat().st_size > 800, f"{png.name} parece estar em branco"  # blank renders are tiny
 
 
 # ---------- Price drop alerts ----------

@@ -1,4 +1,4 @@
-<img src="monitor/static/logo.svg" alt="Monitor de Preços" width="320">
+<img src="logo.png" alt="Monitor de Preços" width="320">
 
 [![Testes](https://github.com/GuilhermeWaldemir/monitor-de-precos/actions/workflows/tests.yml/badge.svg)](https://github.com/GuilhermeWaldemir/monitor-de-precos/actions/workflows/tests.yml)
 
