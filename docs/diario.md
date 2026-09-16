@@ -28,7 +28,7 @@ Etapa 13 Motor do alerta (queda de 4%) ....... ✅  298 testes
 Etapa 14 Envio do alerta por e-mail .......... ✅  312 testes
 Etapa 15 API oficial do Mercado Livre ........ 🔍  343 testes
 Etapa 16 Verificação agendada (12:30) ........ 🔍  349 testes
-Etapa 15+ ver "Próximos passos"
+Etapa 17+ ver "Próximos passos"
 ```
 
 ---
