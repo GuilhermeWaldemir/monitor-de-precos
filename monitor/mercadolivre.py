@@ -14,7 +14,12 @@ project uses the API Mercado Livre itself offers. It works like this:
    the new one must be saved).
 """
 
+import base64
+import hashlib
+import json
+import logging
 import re
+import secrets
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -25,6 +30,8 @@ import requests
 
 from monitor import db
 from monitor.jsonld import ProductInfo
+
+logger = logging.getLogger(__name__)
 
 AUTHORIZATION_URL = "https://auth.mercadolivre.com.br/authorization"
 TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
@@ -89,21 +96,34 @@ def resource_from_url(url: str) -> tuple[str, str] | None:
     return None
 
 
-def authorization_url(credentials: AppCredentials, state: str) -> str:
+def make_pkce_pair() -> tuple[str, str]:
+    """PKCE: a random secret (verifier) and its SHA-256 fingerprint (challenge).
+
+    The challenge goes in the authorization link; the verifier only goes in the token
+    request, straight from this server. Someone who steals the `code` from the browser
+    cannot use it, because they don't have the verifier.
+    """
+    verifier = secrets.token_urlsafe(64)  # 86 characters, within the 43-128 PKCE allows
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return verifier, challenge
+
+
+def authorization_url(credentials: AppCredentials, state: str, code_challenge: str | None = None) -> str:
     """Where to send the user to authorize the app.
 
     `state` is a random value we keep in the session and check when Mercado Livre sends the
     user back: it proves the answer belongs to the request this site started.
     """
-    query = urlencode(
-        {
-            "response_type": "code",
-            "client_id": credentials.client_id,
-            "redirect_uri": credentials.redirect_uri,
-            "state": state,
-        }
-    )
-    return f"{AUTHORIZATION_URL}?{query}"
+    params = {
+        "response_type": "code",
+        "client_id": credentials.client_id,
+        "redirect_uri": credentials.redirect_uri,
+        "state": state,
+    }
+    if code_challenge:
+        params.update(code_challenge=code_challenge, code_challenge_method="S256")
+    return f"{AUTHORIZATION_URL}?{urlencode(params)}"
 
 
 def code_from_answer(answer: str) -> str:
@@ -118,19 +138,24 @@ def code_from_answer(answer: str) -> str:
 
 # ---------- Tokens ----------
 
-def connect(conn: sqlite3.Connection, credentials: AppCredentials, code: str, post_form=None) -> None:
+def connect(
+    conn: sqlite3.Connection,
+    credentials: AppCredentials,
+    code: str,
+    post_form=None,
+    code_verifier: str | None = None,
+) -> None:
     """Exchange the authorization code for the tokens and save them."""
-    answer = _post_token(
-        {
-            "grant_type": "authorization_code",
-            "client_id": credentials.client_id,
-            "client_secret": credentials.client_secret,
-            "code": code,
-            "redirect_uri": credentials.redirect_uri,
-        },
-        post_form,
-    )
-    _save_tokens(conn, answer)
+    data = {
+        "grant_type": "authorization_code",
+        "client_id": credentials.client_id,
+        "client_secret": credentials.client_secret,
+        "code": code,
+        "redirect_uri": credentials.redirect_uri,
+    }
+    if code_verifier:
+        data["code_verifier"] = code_verifier
+    _save_tokens(conn, _post_token(data, post_form))
 
 
 def disconnect(conn: sqlite3.Connection) -> None:
@@ -289,7 +314,26 @@ def _post_token(data: dict, post_form=None) -> dict:
     except requests.RequestException as error:
         raise MercadoLivreError(f"Não consegui falar com a API: {error.__class__.__name__}.") from None
     if response.status_code != 200:
-        raise MercadoLivreError(
-            "O Mercado Livre recusou a autorização. Confira o App ID, a Secret Key e a URL de retorno."
-        )
+        raise MercadoLivreError(token_error_message(response.status_code, response.text))
     return response.json(parse_float=Decimal)
+
+
+def token_error_message(status_code: int, body: str) -> str:
+    """Turn Mercado Livre's error answer into a message that says what to do."""
+    try:
+        answer = json.loads(body)
+        error, detail = str(answer.get("error", "")), str(answer.get("message", ""))
+    except (ValueError, AttributeError):
+        error, detail = "", body[:200]
+    logger.warning("Mercado Livre token error %s: %s %s", status_code, error, detail)
+
+    if error == "invalid_client":
+        hint = "O App ID ou a Secret Key não conferem com a aplicação no portal do Mercado Livre."
+    elif "redirect" in detail.lower():
+        hint = "A URL de retorno do .env não é idêntica à cadastrada na aplicação."
+    elif error == "invalid_grant":
+        hint = ("O código expirou (vale poucos minutos) ou já foi usado. "
+                "Clique em Conectar de novo e cole a URL logo em seguida.")
+    else:
+        hint = "Confira o App ID, a Secret Key e a URL de retorno."
+    return f"O Mercado Livre recusou a autorização ({error or status_code}: {detail}). {hint}"

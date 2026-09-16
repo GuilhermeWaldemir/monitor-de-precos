@@ -95,6 +95,45 @@ def test_authorization_url():
     assert "state=estado-aleatorio" in url
 
 
+def test_pkce_pair():
+    import base64
+    import hashlib
+
+    verifier, challenge = mercadolivre.make_pkce_pair()
+
+    assert 43 <= len(verifier) <= 128  # length PKCE allows
+    expected = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    assert challenge == expected  # the challenge is the SHA-256 of the verifier
+    assert mercadolivre.make_pkce_pair()[0] != verifier  # random every time
+
+
+def test_authorization_url_with_pkce():
+    url = mercadolivre.authorization_url(CREDENTIALS, "estado", code_challenge="DESAFIO")
+    assert "code_challenge=DESAFIO" in url
+    assert "code_challenge_method=S256" in url
+
+
+def test_connect_sends_the_pkce_verifier(conn):
+    api = FakeApi(token_answer={"access_token": "T", "refresh_token": "R", "expires_in": 60})
+    mercadolivre.connect(conn, CREDENTIALS, "CODE", post_form=api.post_form, code_verifier="VERIFICADOR")
+    assert api.token_calls[0]["code_verifier"] == "VERIFICADOR"
+
+
+@pytest.mark.parametrize(
+    ("body", "expected_hint"),
+    [
+        ('{"error": "invalid_grant", "message": "Error validating grant"}', "expirou"),
+        ('{"error": "invalid_client", "message": "invalid client_id"}', "App ID ou a Secret Key"),
+        ('{"error": "invalid_request", "message": "redirect_uri mismatch"}', "URL de retorno"),
+        ("<html>erro</html>", "Confira o App ID"),
+    ],
+)
+def test_token_error_message_explains_what_to_do(body, expected_hint):
+    message = mercadolivre.token_error_message(400, body)
+    assert expected_hint in message
+    assert message.startswith("O Mercado Livre recusou a autorização (")
+
+
 @pytest.mark.parametrize(
     ("answer", "expected"),
     [

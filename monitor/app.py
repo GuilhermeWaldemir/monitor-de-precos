@@ -473,8 +473,11 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
 
         # Random value kept in the session: proves the answer belongs to this request.
         state = secrets.token_urlsafe(16)
+        # PKCE: the verifier stays on this server; only its fingerprint goes in the link.
+        code_verifier, code_challenge = mercadolivre.make_pkce_pair()
         session["ml_state"] = state
-        return redirect(mercadolivre.authorization_url(credentials, state))
+        session["ml_code_verifier"] = code_verifier
+        return redirect(mercadolivre.authorization_url(credentials, state, code_challenge))
 
     @app.get("/mercadolivre/callback")
     def mercadolivre_callback():
@@ -504,10 +507,17 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
     def _finish_ml_connection(code: str):
         credentials = mercadolivre.AppCredentials.from_env()
         try:
-            mercadolivre.connect(get_conn(), credentials, mercadolivre.code_from_answer(code))
+            mercadolivre.connect(
+                get_conn(),
+                credentials,
+                mercadolivre.code_from_answer(code),
+                # The same browser session that clicked "Conectar" holds the PKCE verifier.
+                code_verifier=session.get("ml_code_verifier"),
+            )
         except mercadolivre.MercadoLivreError as error:
             flash(str(error), "error")
         else:
+            session.pop("ml_code_verifier", None)
             flash("Mercado Livre conectado. Os preços passam a vir da API oficial.", "ok")
         return redirect(url_for("settings", _anchor="mercado-livre"))
 
