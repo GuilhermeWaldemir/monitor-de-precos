@@ -10,13 +10,14 @@ from decimal import Decimal
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 
-from monitor import alerts, auth, checker, compare, db, history
+from monitor import alerts, auth, checker, compare, db, emailer, history
+from monitor.config import load_env_file
 from monitor.capture import bookmarklet_href, read_captured
 from monitor.fetcher import fetch_html
 from monitor.matching import code_matches
 from monitor.stores import link_key
 from monitor.icons import CATEGORY_ICONS, DEFAULT_CATEGORY_ICON
-from monitor.prices import format_brl, parse_brl_price
+from monitor.prices import format_brl, format_percent, parse_brl_price
 from monitor.search import search_products
 from monitor.settings import (
     CHOICES,
@@ -45,12 +46,14 @@ PUBLIC_ENDPOINTS = {"static", "login", "signup"}
 PAGES_THAT_NEED_LOGIN = {"new_product", "edit_product", "capture_page"}
 
 
-def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
-    """Build the app. Tests pass a temporary database and a fake `fetch`."""
+def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask:
+    """Build the app. Tests pass a temporary database, a fake `fetch` and a fake `send_email`."""
+    load_env_file()  # passwords and SMTP settings live in .env, outside Git
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-secret")
     app.config["DB_PATH"] = db_path
     fetch = fetch or fetch_html
+    send_email = send_email or emailer.send_email
 
     with closing(db.connect(db_path)) as conn:  # closing() closes the connection at the end
         db.init_db(conn)
@@ -158,8 +161,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
 
     @app.template_filter("percent")
     def percent_filter(value) -> str:
-        """Decimal("5.2") -> "5,2%" (in Portuguese the decimal mark is a comma)."""
-        return f"{value}".replace(".", ",") + "%"
+        return format_percent(value)
 
     # ---------- Product grid ----------
 
@@ -476,11 +478,29 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
             return redirect(url_for("settings"))
         return render_settings()
 
+    @app.post("/settings/test-email")
+    def test_email():
+        """Sends one e-mail to the logged-in account, to check the .env settings."""
+        user = current_user()
+        try:
+            send_email(
+                user["email"],
+                "Monitor de Preços: e-mail de teste",
+                "Se você recebeu este e-mail, os alertas de queda de preço vão chegar aqui.",
+            )
+        except emailer.EmailError as error:
+            flash(str(error), "error")
+        else:
+            flash(f"E-mail de teste enviado para {user['email']}.", "ok")
+        return redirect(url_for("settings", _anchor="alertas"))
+
     def render_settings(**context):
+        smtp = emailer.SmtpConfig.from_env()
         return render_template(
             "settings.html",
             theme_options=THEME_OPTIONS,
             font_options=FONT_OPTIONS,
+            smtp_config=smtp,
             # The bookmarklet must point back to this site, wherever it is running.
             bookmarklet_href=bookmarklet_href(request.url_root),
             **context,
@@ -495,17 +515,40 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None) -> Flask:
         return item
 
     def _announce_price_drop(product_id: int) -> None:
-        """After new prices are saved: warn when the best price dropped 4% or more.
+        """After new prices are saved: warn when the best price dropped 4% or more."""
+        conn = get_conn()
+        drop = alerts.check_product_for_drop(conn, product_id)
+        if drop is None:
+            return
 
-        Step 3 will also send this as an e-mail to the accounts.
-        """
-        drop = alerts.check_product_for_drop(get_conn(), product_id)
-        if drop is not None:
-            flash(
-                f"Caiu {percent_filter(drop.percent)}! {drop.product_name}: "
-                f"{format_brl(drop.old_price)} → {format_brl(drop.new_price)} na {drop.store}.",
-                "drop",
-            )
+        flash(
+            f"Caiu {drop.percent_text}! {drop.product_name}: "
+            f"{format_brl(drop.old_price)} → {format_brl(drop.new_price)} na {drop.store}.",
+            "drop",
+        )
+        _email_price_drop(conn, drop)
+
+    def _email_price_drop(conn, drop) -> None:
+        """E-mail every account about the drop. A failure here never breaks the page."""
+        recipients = db.list_user_emails(conn)
+        if not recipients:
+            return
+
+        subject, body = alerts.drop_email(
+            drop, url_for("product_page", product_id=drop.product_id, _external=True)
+        )
+        sent_to = []
+        for address in recipients:
+            try:
+                send_email(address, subject, body)
+            except emailer.EmailError as error:
+                flash(f"Aviso não enviado para {address}. {error}", "error")
+            else:
+                sent_to.append(address)
+
+        if sent_to:
+            db.mark_alert_emailed(conn, drop.alert_id)
+            flash(f"Aviso enviado para {', '.join(sent_to)}.", "ok")
 
     def _flash_results(results) -> None:
         for result in results:

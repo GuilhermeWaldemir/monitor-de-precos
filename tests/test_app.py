@@ -6,7 +6,6 @@ from urllib.parse import unquote
 import pytest
 
 from monitor import db
-from monitor.app import create_app
 from tests.helpers import (
     AMAZON_URL,
     CLOTHING_ID,
@@ -14,43 +13,12 @@ from tests.helpers import (
     KABUM_URL,
     PERFUMES_ID,
     RAM_CODE,
+    RAM_NAME,
+    TEST_EMAIL,
     TERABYTE_URL,
-    read_fixture,
 )
-from tests.test_checker_and_compare import fake_fetch
 
-RAM_NAME = "Memória Kingston Fury Beast 16GB DDR4 3200MHz"
-TEST_EMAIL = "guilherme@exemplo.com"
-TEST_PASSWORD = "senha-de-teste"
-
-
-def fetch_with_amazon(url):
-    if url == AMAZON_URL:
-        return read_fixture("amazon_kf432c16bb1-16.html")
-    return fake_fetch(url)
-
-
-@pytest.fixture
-def db_path(tmp_path):
-    return tmp_path / "app.db"
-
-
-@pytest.fixture
-def anonymous_client(db_path):
-    """A visitor: can look around, but cannot change anything."""
-    app = create_app(db_path=db_path, fetch=fetch_with_amazon)
-    app.config["TESTING"] = True
-    return app.test_client()
-
-
-@pytest.fixture
-def client(anonymous_client):
-    """Logged in, because almost every test below changes something."""
-    anonymous_client.post(
-        "/signup",
-        data={"email": TEST_EMAIL, "password": TEST_PASSWORD, "password_confirm": TEST_PASSWORD},
-    )
-    return anonymous_client
+# The fixtures used here (client, anonymous_client, mailbox, db_path) live in conftest.py.
 
 
 def add_ram(client, **overrides):
@@ -520,6 +488,50 @@ def test_price_drop_is_announced_and_listed_on_the_product_page(client):
     assert "R$ 929,99 → R$ 800,00 na Terabyte" in response.text
     assert "Quedas de preço" in response.text  # the section with the history of drops
     assert "−14,0%" in response.text
+
+
+def test_price_drop_sends_an_email_to_the_account(client, mailbox, db_path):
+    add_ram(client)
+    client.post("/links/2/manual-price", data={"price": "800,00"}, follow_redirects=True)
+
+    [message] = mailbox.sent
+    assert message["to"] == TEST_EMAIL
+    assert message["subject"] == "Caiu 14,0%: Memória Kingston Fury Beast 16GB DDR4 3200MHz"
+    assert "R$ 800,00" in message["body"]
+    assert "http://localhost/products/1" in message["body"]  # link back to the product page
+
+    with closing(db.connect(db_path)) as conn:
+        [alert] = db.list_price_alerts(conn, 1)
+        assert alert["emailed_at"] is not None  # marked, so it is never sent twice
+
+
+def test_email_failure_does_not_break_the_page(client, mailbox, db_path):
+    from monitor.emailer import EmailError
+
+    add_ram(client)
+    mailbox.error = EmailError("O servidor recusou o login.")
+    response = client.post("/links/2/manual-price", data={"price": "800,00"}, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert "Caiu 14,0%!" in response.text  # the site still shows the drop
+    assert "Aviso não enviado para" in response.text
+    with closing(db.connect(db_path)) as conn:
+        assert db.list_price_alerts(conn, 1)[0]["emailed_at"] is None  # can be retried later
+
+
+def test_test_email_button(client, mailbox):
+    response = client.post("/settings/test-email", follow_redirects=True)
+
+    assert f"E-mail de teste enviado para {TEST_EMAIL}" in response.text
+    assert mailbox.sent[0]["subject"] == "Monitor de Preços: e-mail de teste"
+
+
+def test_test_email_shows_the_error(client, mailbox):
+    from monitor.emailer import EmailError
+
+    mailbox.error = EmailError("Envio de e-mail não configurado: falta MONITOR_SMTP_USER.")
+    response = client.post("/settings/test-email", follow_redirects=True)
+    assert "não configurado" in response.text
 
 
 def test_small_drop_is_not_announced(client):

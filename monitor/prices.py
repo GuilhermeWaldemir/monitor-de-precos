@@ -46,6 +46,11 @@ def from_cents(cents: int) -> Decimal:
     return (Decimal(cents) / 100).quantize(Decimal("0.01"))
 
 
+def format_percent(value: Decimal) -> str:
+    """Decimal("14.0") -> "14,0%" (in Portuguese the decimal mark is a comma)."""
+    return f"{value}".replace(".", ",") + "%"
+
+
 def format_brl(price: Decimal) -> str:
     """Decimal("1299.9") -> "R$ 1.299,90"."""
     us_style = f"{price:,.2f}"  # "1,299.90"

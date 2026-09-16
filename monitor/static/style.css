@@ -761,6 +761,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px
 
 /* ---------- "Capturar preço" bookmarklet (settings section + capture page) ---------- */
 .capture-setup { display: grid; gap: var(--space-3); max-width: 720px; }
+.env-example {
+  margin: var(--space-2) 0 0; padding: var(--space-3);
+  border-radius: var(--radius-sm); background: var(--bg);
+  font: 0.85rem/1.5 ui-monospace, "Cascadia Code", Consolas, monospace;
+  overflow-x: auto;
+}
+code { padding: 1px 5px; border-radius: 5px; background: var(--bg); font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; }
 .capture-steps { margin: 0; padding-left: 1.3em; display: grid; gap: var(--space-1); }
 .bookmarklet { justify-self: start; cursor: grab; }
 kbd {

@@ -108,6 +108,34 @@
   </div>
 </form>
 
+<section class="card capture-setup" id="alertas" aria-labelledby="alerts-title">
+  <h2 id="alerts-title">Alertas de preço por e-mail</h2>
+  <p class="muted">
+    Quando o melhor preço de um produto cai <strong>4% ou mais</strong>, o site avisa por e-mail
+    todas as contas cadastradas. O seu: <strong>{{ current_user.email }}</strong>.
+  </p>
+
+  {% if smtp_config %}
+    <p class="flash flash-ok">
+      Envio configurado: {{ smtp_config.host }}:{{ smtp_config.port }}, remetente {{ smtp_config.sender }}.
+    </p>
+    <form method="post" action="{{ url_for('test_email') }}" data-busy="Enviando…">
+      <button type="submit" class="button">{{ icon("refresh", 16) }}<span>Enviar e-mail de teste</span></button>
+    </form>
+  {% else %}
+    <p class="flash flash-error">Envio de e-mail ainda não configurado.</p>
+    <ol class="capture-steps">
+      <li>Na sua Conta Google: <strong>Segurança → Verificação em duas etapas → Senhas de app</strong>, e gere uma senha.</li>
+      <li>Crie um arquivo <code>.env</code> na pasta do projeto (ele fica fora do Git), com:
+        <pre class="env-example">MONITOR_SMTP_USER=seu-email@gmail.com
+MONITOR_SMTP_PASSWORD=a senha de app gerada</pre>
+      </li>
+      <li>Pare o servidor e rode de novo, para ele ler o arquivo.</li>
+    </ol>
+    <p class="hint">Veja o arquivo <code>.env.example</code> do projeto para todas as opções.</p>
+  {% endif %}
+</section>
+
 <section class="card capture-setup" id="capturar-preco" aria-labelledby="capture-setup-title">
   <h2 id="capture-setup-title">Capturar preço do navegador</h2>
   <p class="muted">

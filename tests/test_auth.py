@@ -1,8 +1,7 @@
 import pytest
 
 from monitor import auth, db
-from tests.helpers import ELECTRONICS_ID, KABUM_URL
-from tests.test_app import TEST_EMAIL, TEST_PASSWORD, anonymous_client, client, db_path  # noqa: F401
+from tests.helpers import ELECTRONICS_ID, KABUM_URL, TEST_EMAIL, TEST_PASSWORD
 
 PASSWORD = "senha-secreta"
 

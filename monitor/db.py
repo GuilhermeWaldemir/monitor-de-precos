@@ -544,6 +544,17 @@ def list_price_alerts(conn: sqlite3.Connection, product_id: int, limit: int = 10
     ).fetchall()
 
 
+def mark_alert_emailed(conn: sqlite3.Connection, alert_id: int) -> None:
+    """Remember that the e-mail for this drop went out, so it is never sent twice."""
+    with conn:
+        conn.execute("UPDATE price_alerts SET emailed_at = ? WHERE id = ?", (now(), alert_id))
+
+
+def list_user_emails(conn: sqlite3.Connection) -> list[str]:
+    """Who receives the alerts: every account (the products are shared between them)."""
+    return [row["email"] for row in conn.execute("SELECT email FROM users ORDER BY id")]
+
+
 def get_settings_rows(conn: sqlite3.Connection) -> dict[str, str]:
     """Every saved setting as {key: value}. Options never saved simply don't appear here."""
     rows = conn.execute("SELECT key, value FROM settings").fetchall()

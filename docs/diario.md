@@ -24,8 +24,9 @@ Etapa 9  Slider de preço ..................... 🔍  217 testes
 Etapa 10 Favorito "Capturar preço" ........... 🔍  245 testes
 Etapa 11 Git, GitHub e CI .................... ✅  245 testes no GitHub Actions
 Etapa 12 Contas (cadastro e login) ........... ✅  283 testes
-Etapa 13 Motor do alerta (queda de 4%) ....... 🔍  298 testes
-Etapa 14+ ver "Próximos passos"
+Etapa 13 Motor do alerta (queda de 4%) ....... ✅  298 testes
+Etapa 14 Envio do alerta por e-mail .......... 🔍  312 testes
+Etapa 15+ ver "Próximos passos"
 ```
 
 ---
@@ -398,7 +399,7 @@ Etapa 14+ ver "Próximos passos"
 
 ---
 
-## Etapa 13: Motor do alerta (queda de 4%) 🔍
+## Etapa 13: Motor do alerta (queda de 4%) ✅
 *2026-09-16 · 298 testes*
 
 **Objetivo:** decidir quando uma queda de preço merece aviso e registrar isso. (Passo 2 de 3 do alerta; o e-mail vem no passo 3.)
@@ -429,6 +430,31 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 ---
 
+## Etapa 14: Envio do alerta por e-mail 🔍
+*2026-09-16 · 312 testes*
+
+**Objetivo:** fechar o alerta de preço: quando cai 4% ou mais, o e-mail chega para quem tem conta no site. (Passo 3 de 3.)
+
+**O que foi adicionado**
+- **`monitor/emailer.py`:** envio por **SMTP** com o `smtplib` (sem biblioteca nova). Aceita porta 587 (STARTTLS) e 465 (SSL), tem timeout e traduz as falhas para mensagens em português.
+- **`monitor/config.py`:** leitor de `.env` em ~10 linhas (alternativa ao `python-dotenv`). Variável já existente no ambiente tem prioridade sobre o arquivo.
+- **`.env.example`** documentando `MONITOR_SMTP_USER`, `MONITOR_SMTP_PASSWORD`, host, porta, remetente e `SECRET_KEY`. O `.env` de verdade fica fora do Git.
+- **E-mail da queda** (`alerts.drop_email`): assunto "Caiu 14,0%: <produto>" e corpo com o preço antigo, o novo, a loja, a economia e o link para a tela do produto.
+- **No site:** ao detectar a queda, o e-mail vai para todas as contas; `price_alerts.emailed_at` marca o envio, para nunca mandar duas vezes. Se o envio falhar, **a página continua funcionando**, o aviso aparece na tela e o alerta fica sem marca para tentar depois.
+- **Configurações → Alertas de preço por e-mail:** mostra se o envio está configurado e traz o botão **"Enviar e-mail de teste"**.
+- **Testes (14 novos):** leitura do `.env`, prioridade do ambiente, montagem da mensagem, texto do e-mail, envio a partir de uma queda real, falha de envio sem quebrar a página e o botão de teste. Nenhum teste envia e-mail de verdade: o site recebe uma função `send_email` falsa, do mesmo jeito que já recebe uma `fetch` falsa.
+- **Organização:** as fixtures compartilhadas (cliente logado, visitante, caixa de e-mail falsa) foram para o `tests/conftest.py`, e a `fake_fetch` para `tests/helpers.py`.
+
+**Conceitos para explicar em entrevista**
+- **Segredo fora do código:** senha em variável de ambiente/`.env`, nunca no repositório. Com o Gmail, uma **senha de app**, que só envia e-mail e pode ser revogada.
+- **SMTP e STARTTLS:** a conversa começa em texto puro e é promovida para criptografada; na porta 465 já nasce criptografada.
+- **Injeção de dependência de novo:** trocar `send_email` nos testes é o mesmo padrão do `fetch`, e é o que permite testar sem internet.
+- **Falha de serviço externo não derruba a funcionalidade principal:** o preço é gravado e a queda registrada mesmo se o e-mail falhar.
+
+**Commit sugerido:** `feat: e-mail the price drop alerts over SMTP, with a test button in settings`
+
+---
+
 ## Próximos passos
 
 Tarefas do arquivo `mudanças`, feitas **uma por vez**, com revisão entre elas:
@@ -452,7 +478,7 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Instalar o Git e fazer os commits | ✅ 2026-09-14: 6 commits por área (configuração, leitura de preços, banco e lógica, site, testes, documentação) |
 | Criar o repositório no GitHub e enviar (`git push`) | ✅ 2026-09-14: [github.com/GuilhermeWaldemir/monitor-de-precos](https://github.com/GuilhermeWaldemir/monitor-de-precos) |
 | Verificação agendada (algumas vezes por dia) | 💡 |
-| **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): passo 1 contas ✅ · passo 2 motor do alerta ✅ · passo 3 envio por SMTP ⏳ | 🔍 |
+| **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): contas ✅ · motor do alerta ✅ · envio por SMTP ✅ (falta o Guilherme configurar o `.env` e testar o envio de verdade) | 🔍 |
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | Deploy com modo demonstração | 💡 |
 | README bilíngue com GIF | 💡 |

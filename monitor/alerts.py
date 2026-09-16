@@ -17,7 +17,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from monitor import compare, db
-from monitor.prices import from_cents
+from monitor.prices import format_brl, format_percent, from_cents
 
 # Drop needed to warn the user, as a fraction: 0.04 = 4%.
 DROP_THRESHOLD = Decimal("0.04")
@@ -31,6 +31,7 @@ class PriceDrop:
     new_price: Decimal
     store: str
     created_at: datetime | None = None  # filled for drops read back from the database
+    alert_id: int | None = None  # row in price_alerts, used to mark the e-mail as sent
 
     @property
     def difference(self) -> Decimal:
@@ -40,6 +41,11 @@ class PriceDrop:
     def percent(self) -> Decimal:
         """How much it dropped, in percent, with one decimal place (e.g. 5.2)."""
         return (self.difference / self.old_price * 100).quantize(Decimal("0.1"))
+
+    @property
+    def percent_text(self) -> str:
+        """"14,0%", ready to show or to put in an e-mail."""
+        return format_percent(self.percent)
 
 
 def check_product_for_drop(conn: sqlite3.Connection, product_id: int) -> PriceDrop | None:
@@ -65,7 +71,7 @@ def check_product_for_drop(conn: sqlite3.Connection, product_id: int) -> PriceDr
         return None  # small drop: keep the old reference so drops can add up
 
     db.set_alert_reference(conn, product_id, best.price)
-    db.add_price_alert(
+    alert_id = db.add_price_alert(
         conn, product_id, old_price=reference, new_price=best.price, store=best.store
     )
     return PriceDrop(
@@ -74,6 +80,7 @@ def check_product_for_drop(conn: sqlite3.Connection, product_id: int) -> PriceDr
         old_price=reference,
         new_price=best.price,
         store=best.store,
+        alert_id=alert_id,
     )
 
 
@@ -90,3 +97,19 @@ def recent_drops(conn: sqlite3.Connection, product: sqlite3.Row, limit: int = 10
         )
         for row in db.list_price_alerts(conn, product["id"], limit)
     ]
+
+
+def drop_email(drop: PriceDrop, product_url: str | None = None) -> tuple[str, str]:
+    """Subject and body (plain text) of the e-mail announcing a price drop."""
+    subject = f"Caiu {drop.percent_text}: {drop.product_name}"
+    lines = [
+        f"O preço de {drop.product_name} caiu {drop.percent_text}.",
+        "",
+        f"De:    {format_brl(drop.old_price)}",
+        f"Por:   {format_brl(drop.new_price)}  (na {drop.store})",
+        f"Economia: {format_brl(drop.difference)}",
+    ]
+    if product_url:
+        lines += ["", f"Ver no Monitor de Preços: {product_url}"]
+    lines += ["", "Você recebe este aviso porque tem conta no Monitor de Preços."]
+    return subject, "\n".join(lines)

@@ -4,19 +4,18 @@ import pytest
 
 from monitor import checker, db
 from monitor.compare import compare_all
-from monitor.fetcher import FetchError
-from tests.helpers import AMAZON_URL, ELECTRONICS_ID, KABUM_URL, ML_URL, RAM_CODE, TERABYTE_URL, read_fixture
+from tests.helpers import (
+    AMAZON_URL,
+    ELECTRONICS_ID,
+    KABUM_URL,
+    ML_URL,
+    RAM_CODE,
+    TERABYTE_URL,
+    fake_fetch,
+    read_fixture,
+)
 
 CODE = RAM_CODE
-
-
-def fake_fetch(url: str) -> str:
-    """Stands in for the internet: returns saved pages or simulates a block."""
-    if url == KABUM_URL:
-        return read_fixture("kabum_kf432c16bb1-16.html")
-    if url == ML_URL:
-        return read_fixture("mercadolivre_bot_check.html")
-    raise FetchError("A loja bloqueou o acesso automático (HTTP 403).")
 
 
 @pytest.fixture
