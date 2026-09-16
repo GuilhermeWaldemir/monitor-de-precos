@@ -7,7 +7,8 @@ __pycache__/
 # Banco de dados local (cada pessoa gera o seu)
 data/
 
-# Segredos
+# Segredos: NUNCA escreva senhas aqui. Este arquivo vai para o GitHub.
+# As senhas ficam no .env, que é justamente o que esta linha manda ignorar.
 .env
 
 # Anotações pessoais de trabalho (lista de pedidos de mudança)
