@@ -25,7 +25,9 @@ Etapa 10 Favorito "Capturar preço" ........... 🔍  245 testes
 Etapa 11 Git, GitHub e CI .................... ✅  245 testes no GitHub Actions
 Etapa 12 Contas (cadastro e login) ........... ✅  283 testes
 Etapa 13 Motor do alerta (queda de 4%) ....... ✅  298 testes
-Etapa 14 Envio do alerta por e-mail .......... 🔍  312 testes
+Etapa 14 Envio do alerta por e-mail .......... ✅  312 testes
+Etapa 15 API oficial do Mercado Livre ........ 🔍  343 testes
+Etapa 16 Verificação agendada (12:30) ........ 🔍  349 testes
 Etapa 15+ ver "Próximos passos"
 ```
 
@@ -430,7 +432,7 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 ---
 
-## Etapa 14: Envio do alerta por e-mail 🔍
+## Etapa 14: Envio do alerta por e-mail ✅
 *2026-09-16 · 312 testes*
 
 **Objetivo:** fechar o alerta de preço: quando cai 4% ou mais, o e-mail chega para quem tem conta no site. (Passo 3 de 3.)
@@ -452,6 +454,62 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 - **Falha de serviço externo não derruba a funcionalidade principal:** o preço é gravado e a queda registrada mesmo se o e-mail falhar.
 
 **Commit sugerido:** `feat: e-mail the price drop alerts over SMTP, with a test button in settings`
+
+---
+
+## Etapa 15: API oficial do Mercado Livre 🔍
+*2026-09-16 · 343 testes*
+
+**Objetivo:** ler os preços do Mercado Livre pelo caminho legítimo. A loja bloqueia programas que leem as páginas, e a resposta do projeto **não** é burlar a proteção: é usar a API que o próprio Mercado Livre oferece.
+
+**Como funciona**
+1. O Guilherme cria uma aplicação em developers.mercadolivre.com.br e põe o **App ID** e a **Secret Key** no `.env`.
+2. Em Configurações, "Conectar ao Mercado Livre" leva ao site da loja para autorizar.
+3. O Mercado Livre devolve um **código** de uso único; o site troca esse código por um **access token** (6 horas) e um **refresh token**, guardados na tabela `oauth_tokens`.
+4. Cada leitura manda o token no cabeçalho `Authorization: Bearer`. Faltando menos de 5 minutos para expirar, o token é renovado sozinho — e o refresh token novo é salvo, porque **o antigo só serve uma vez**.
+5. Links de catálogo (`/p/MLB...`) usam `/products/{id}` (preço da oferta vencedora) e anúncios (`/MLB-...`) usam `/items/{id}`.
+
+**O que foi adicionado**
+- `monitor/mercadolivre.py`: URLs de autorização, troca e renovação de token, leitura do produto (nome, preço em `Decimal`, foto, estoque, GTIN e MPN vindos dos atributos).
+- Tabela `oauth_tokens` (um registro por loja) com UPSERT.
+- Rotas `/mercadolivre/connect`, `/mercadolivre/callback`, `/mercadolivre/code` (colar o código à mão, para quando a loja exigir retorno `https`) e `/mercadolivre/disconnect`, além da seção em Configurações com o passo a passo.
+- `checker`: link do Mercado Livre **com conexão ativa** passa pela API; sem conexão, continua tentando a página (e registrando o bloqueio).
+- 31 testes com uma API falsa: leitura de anúncio e de catálogo, estoque, renovação de token, erros e o verificador usando a API.
+
+**Conceitos para explicar em entrevista**
+- **OAuth 2.0 (authorization code):** autorização do dono da conta, sem o site nunca ver a senha dele.
+- **`state`:** valor aleatório guardado na sessão e conferido na volta, para garantir que a resposta pertence ao pedido que este site começou (CSRF do fluxo OAuth).
+- **Token curto + refresh token de uso único:** se um token vaza, ele expira rápido; e a rotação do refresh token limita o estrago.
+- **Segredos no `.env`**, nunca no repositório.
+- **Decisão de projeto:** preferir a API oficial a "driblar" proteção — é o que se sustenta em produção e numa entrevista.
+
+**Commit sugerido:** `feat: read Mercado Livre prices through the official API (OAuth)`
+
+---
+
+## Etapa 16: Verificação agendada (todo dia às 12:30) 🔍
+*2026-09-16 · 349 testes*
+
+**Objetivo:** os preços serem verificados sozinhos, sem o site aberto — é isso que faz o alerta chegar por e-mail.
+
+**O que foi adicionado**
+- `monitor/daily_check.py`: verifica todos os produtos, aplica a regra da queda, envia os e-mails, marca `emailed_at` e escreve um resumo (produtos, preços lidos, falhas, quedas, e-mails).
+  - **3 segundos de pausa** entre produtos, para manter o acesso gentil com as lojas.
+  - Um produto que dê erro inesperado **não derruba** os outros.
+  - Log em `data/verificacao-diaria.log` (UTF-8) e também na tela.
+- `scripts/verificacao-diaria.cmd`: entra na pasta do projeto e roda o módulo com o Python do `.venv`.
+- **Agendador de Tarefas do Windows:** tarefa "Monitor de Precos - Verificacao diaria", diária às **12:30** (a máquina está em UTC−3, horário de Brasília), criada com `schtasks`.
+- 6 testes com internet falsa e sem pausa: contagem do resumo, e-mail da queda, falha de envio que mantém o alerta para depois, ninguém cadastrado e produto com erro.
+
+**Primeira execução real** (feita à mão): 2 produtos, 3 preços lidos (KaBuM!, Terabyte e uma farmácia), 6 falhas das lojas que bloqueiam, nenhuma queda.
+
+**Conceitos para explicar em entrevista**
+- **Tarefa agendada (cron do Windows):** o mesmo papel do `cron` no Linux; em produção seria um agendador do servidor.
+- **Script separado do site:** a rotina usa as mesmas funções (`checker`, `alerts`, `emailer`) sem depender do Flask estar no ar.
+- **Log é a única testemunha** de um processo que roda sozinho: por isso o resumo e o arquivo.
+- **Encoding no Windows:** o console não usa UTF-8 por padrão, e por isso a saída é reconfigurada.
+
+**Commit sugerido:** `feat: add the daily scheduled price check (12:30) with logging`
 
 ---
 
@@ -477,7 +535,7 @@ Roteiro geral do projeto (depois das tarefas acima):
 |---|---|
 | Instalar o Git e fazer os commits | ✅ 2026-09-14: 6 commits por área (configuração, leitura de preços, banco e lógica, site, testes, documentação) |
 | Criar o repositório no GitHub e enviar (`git push`) | ✅ 2026-09-14: [github.com/GuilhermeWaldemir/monitor-de-precos](https://github.com/GuilhermeWaldemir/monitor-de-precos) |
-| Verificação agendada (algumas vezes por dia) | 💡 |
+| Verificação agendada | ✅ 2026-09-16: todo dia às 12:30 (Agendador de Tarefas do Windows) |
 | **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): contas ✅ · motor do alerta ✅ · envio por SMTP ✅ (falta o Guilherme configurar o `.env` e testar o envio de verdade) | 🔍 |
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | Deploy com modo demonstração | 💡 |

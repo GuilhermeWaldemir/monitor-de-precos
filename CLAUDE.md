@@ -28,7 +28,8 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 - **Site desde já:** interface web simples com Flask. Sem CLI por enquanto.
 - **Configurações:** tema (Automático/Claro/Escuro, padrão "Automático") e fonte (Padrão · Nunito Sans + Bowlby One · Oswald + Indie Flower, padrão "Padrão") ficam salvos no SQLite (tabela `settings`, uma linha por opção), gravados juntos numa transação só. O padrão de cada um é sempre o que o site já fazia antes de existir a tela de Configurações (tema segue o sistema; fonte é a do sistema).
 - **Animações:** cada animação tem um interruptor liga/desliga em Configurações → Animações (hoje: brilho nos cards, ligado por padrão). Nenhuma aparece com "reduzir movimento" do sistema. Componentes de referência em React (21st.dev) são **reescritos em CSS/JS puro**, sem adicionar React/Tailwind ao projeto.
-- **Loja bloqueou = capturar ou digitar o preço.** Se a leitura automática falhar, o card mostra o motivo. O usuário pode usar o **favorito "Capturar preço"** (bookmarklet que lê a página que ele mesmo abriu e só salva após confirmação; origem `capture`) ou informar o preço à mão (origem `manual`). **Nunca burlar proteções** (nada de fingir navegador, proxy, captcha ou modos "stealth" de bibliotecas como o Scrapling).
+- **Loja bloqueou = capturar ou digitar o preço.** Se a leitura automática falhar, o card mostra o motivo. O usuário pode usar o **favorito "Capturar preço"** (bookmarklet que lê a página que ele mesmo abriu e só salva após confirmação; origem `capture`) ou informar o preço à mão (origem `manual`). **Nunca burlar proteções** (nada de fingir navegador, proxy, captcha ou modos "stealth" de bibliotecas como o Scrapling). Pedido de novo em 2026-09-16 e recusado de novo: os caminhos legítimos são **API oficial** (feita para o Mercado Livre), o favorito "Capturar preço" e adicionar lojas que publicam os dados.
+- **Verificação agendada:** todo dia às **12:30** (horário de Brasília), pelo Agendador de Tarefas do Windows chamando `scripts/verificacao-diaria.cmd`. Pausa de 3 s entre produtos e log em `data/verificacao-diaria.log`.
 - **Mudança de esquema com dados reais:** escrever migração em `db.py` (ex.: `_migrate_allow_capture_source`), testada a partir de um banco no formato antigo. **Fazer backup de `data/monitor.db` antes**, porque o servidor em `--debug` roda o `init_db` a cada arquivo salvo.
 - **Contas (2026-09-16):** o site tem cadastro e login (tabela `users`, senha só como *hash*). **Visitante vê, mas não mexe:** todo POST e as telas que só servem para mudar dados exigem login. Os **produtos continuam compartilhados** entre as contas; cada conta serve para entrar e receber os alertas de preço no e-mail dela.
 - **Alerta de preço:** e-mail quando o melhor preço de um produto cair **4% ou mais** em relação ao último melhor preço conhecido; depois de avisar, o preço novo vira a referência (não repetir aviso). O envio usa **SMTP** (`smtplib`), com as credenciais no `.env` (veja `.env.example`); se o e-mail falhar, o site continua funcionando e o alerta fica sem `emailed_at` para tentar depois. Nos testes, `create_app` recebe um `send_email` falso.
@@ -41,7 +42,7 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 | KaBuM! | ✅ JSON-LD | Precisa de `Accept`/`Accept-Language`; sem eles dá timeout. Código do fabricante vem no nome |
 | Terabyte | ✅ JSON-LD | Com `urllib` deu 403; com `requests` funciona. Código vem no campo `mpn` |
 | Amazon | ✅ HTML (`monitor/amazon.py`) | Sem JSON-LD. A mesma URL alterna entre layout com oferta principal e só "outras ofertas"; no segundo caso o leitor registra erro em vez de usar o preço "a partir de" |
-| Mercado Livre | ❌ | Página devolve verificação anti-robô (ou 503); API oficial exige login (401/403). Usar preço manual |
+| Mercado Livre | ✅ API oficial (`monitor/mercadolivre.py`) | A página bloqueia robôs. A leitura usa a **API oficial com OAuth**: crie a aplicação em developers.mercadolivre.com.br, ponha App ID/Secret no `.env` e conecte em Configurações. Sem conexão, cai no antigo bloqueio e usa preço manual/captura |
 | Magazine Luiza | ❌ | 403 até no `robots.txt`. Usar preço manual |
 
 ## Stack
@@ -82,6 +83,8 @@ monitor-de-precos/
 │   ├── auth.py         # contas: regras de e-mail/senha, cadastro, login (hash do Werkzeug)
 │   ├── alerts.py       # regra da queda de 4% (preço de referência por produto), histórico e texto do e-mail
 │   ├── emailer.py      # envio por SMTP (smtplib); configuração vem do .env
+│   ├── mercadolivre.py # API oficial do Mercado Livre (OAuth, tokens, leitura de anúncio/catálogo)
+│   ├── daily_check.py  # verificação agendada: roda sozinha, avisa por e-mail e grava log
 │   ├── config.py       # leitor do .env (segredos fora do Git)
 │   ├── templates/      # base (layout+barra lateral), index (grade), product, product_form, settings, parciais _*.html
 │   └── static/         # style.css, js/product-chart.js, vendor/chart.umd.min.js, fonts/ (self-hosted, OFL)
@@ -130,6 +133,8 @@ py -m venv .venv                      # criar ambiente virtual (uma vez)
 pip install -r requirements.txt       # instalar dependências
 flask --app monitor.app run --debug   # site em http://127.0.0.1:5000
 pytest                                # rodar testes
+py -m monitor.daily_check             # rodar a verificação diária à mão
+schtasks /Query /TN "Monitor de Precos - Verificacao diaria" /V /FO LIST   # conferir o agendamento
 ```
 
 ## Observações do ambiente
