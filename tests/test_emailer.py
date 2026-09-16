@@ -41,6 +41,14 @@ def test_settings_can_be_changed(monkeypatch):
     assert (config.host, config.port, config.sender) == ("smtp.exemplo.com", 465, "avisos@exemplo.com")
 
 
+def test_spaces_in_the_app_password_are_ignored(monkeypatch):
+    """Google shows the app password in groups of four; the spaces are not part of it."""
+    monkeypatch.setenv("MONITOR_SMTP_USER", "eu@gmail.com")
+    monkeypatch.setenv("MONITOR_SMTP_PASSWORD", "abcd efgh ijkl mnop")
+
+    assert emailer.SmtpConfig.from_env().password == "abcdefghijklmnop"
+
+
 def test_sending_without_settings_explains_what_is_missing():
     with pytest.raises(emailer.EmailError, match="não configurado"):
         emailer.send_email("ana@exemplo.com", "Oi", "Corpo")
@@ -57,7 +65,7 @@ def test_load_env_file(tmp_path, monkeypatch):
     load_env_file(env)
 
     assert emailer.SmtpConfig.from_env().user == "eu@gmail.com"
-    assert emailer.SmtpConfig.from_env().password == "senha de app"
+    assert emailer.SmtpConfig.from_env().password == "senhadeapp"  # spaces removed on purpose
 
 
 def test_environment_wins_over_the_file(tmp_path, monkeypatch):

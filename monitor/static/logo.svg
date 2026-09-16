@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" width="360" height="96"
+     role="img" aria-label="Monitor de Preços">
+  <title>Monitor de Preços</title>
+  <!-- Full logo (badge + name), used in the README. Same drawing as logo-mark.svg. -->
+  <style>
+    .badge { fill: #0f7a5c; }
+    .line  { stroke: #ffffff; fill: none; stroke-width: 5.2; stroke-linecap: round; stroke-linejoin: round; }
+    .dot   { fill: #ffffff; }
+    .name  { fill: #1b1f24; font: 700 30px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: -0.5px; }
+    .tagline { fill: #5d6572; font: 400 15px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      .badge { fill: #3fbf93; }
+      .line  { stroke: #0b1f18; }
+      .dot   { fill: #0b1f18; }
+      .name  { fill: #e8eaed; }
+      .tagline { fill: #a0a8b3; }
+    }
+  </style>
+  <rect class="badge" x="8" y="16" width="64" height="64" rx="16"/>
+  <polyline class="line" points="22,40 34,52 44,40 57,57"/>
+  <circle class="dot" cx="57" cy="57" r="5.6"/>
+  <text class="name" x="88" y="50">Monitor de Preços</text>
+  <text class="tagline" x="88" y="72">o mesmo produto, várias lojas</text>
+</svg>

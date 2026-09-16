@@ -36,7 +36,9 @@ class SmtpConfig:
     def from_env(cls) -> "SmtpConfig | None":
         """The configuration, or None when the .env does not have the account yet."""
         user = os.environ.get("MONITOR_SMTP_USER", "").strip()
-        password = os.environ.get("MONITOR_SMTP_PASSWORD", "").strip()
+        # Google shows the app password in groups of four ("abcd efgh ijkl mnop"), but the
+        # spaces are only to make it readable: the password itself has none.
+        password = os.environ.get("MONITOR_SMTP_PASSWORD", "").replace(" ", "").strip()
         if not user or not password:
             return None
         return cls(

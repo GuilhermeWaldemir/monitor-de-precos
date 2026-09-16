@@ -7,13 +7,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Monitor de Preços{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='logo-mark.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
 
   <header class="topbar">
-    <a class="brand" href="{{ url_for('index') }}">Monitor de Preços</a>
+    <a class="brand" href="{{ url_for('index') }}">
+      {#- The logo is inline (not an <img>) so it can use the site's colors. -#}
+      <svg class="brand-mark" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true" focusable="false">
+        <rect width="32" height="32" rx="8" fill="var(--accent)"/>
+        <polyline points="7,12 13,18 18,13 24.5,20.5" fill="none" stroke="var(--on-accent)"
+                  stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="24.5" cy="20.5" r="2.8" fill="var(--on-accent)"/>
+      </svg>
+      <span>Monitor de Preços</span>
+    </a>
 
     <form class="search" role="search" method="get" action="{{ url_for('search') }}">
       <label class="sr-only" for="search-input">Buscar produtos</label>

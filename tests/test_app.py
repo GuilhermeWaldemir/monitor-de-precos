@@ -477,6 +477,18 @@ def test_turning_category_animation_off_removes_banner(client):
     assert "js/dot-transition.js" not in page
 
 
+def test_every_page_has_the_logo_and_the_favicon(anonymous_client):
+    from pathlib import Path
+
+    page = anonymous_client.get("/").text
+    assert 'class="brand-mark"' in page  # the logo drawn in the top bar
+    assert 'rel="icon"' in page and "logo-mark.svg" in page
+
+    static = Path(__file__).parent.parent / "monitor" / "static"
+    assert (static / "logo-mark.svg").is_file()
+    assert (static / "logo.svg").is_file()  # full logo, used in the README
+
+
 # ---------- Price drop alerts ----------
 
 def test_price_drop_is_announced_and_listed_on_the_product_page(client):
