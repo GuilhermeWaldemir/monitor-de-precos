@@ -445,3 +445,16 @@ def test_cannot_read_without_credentials_and_without_connection(conn, monkeypatc
     monkeypatch.delenv("MONITOR_ML_CLIENT_ID", raising=False)
     monkeypatch.delenv("MONITOR_ML_CLIENT_SECRET", raising=False)
     assert mercadolivre.can_read(conn) is False
+
+
+def test_model_attribute_counts_as_the_part_number(conn):
+    """Mercado Livre usually fills MODEL instead of MPN (real case: KF432C16BB1/16WP)."""
+    api = connect(conn)
+    api.answers = {
+        "https://api.mercadolibre.com/products/MLB18623867": {
+            **CATALOG_ANSWER, "attributes": [{"id": "MODEL", "value_name": "KF432C16BB1/16WP"}],
+        }
+    }
+
+    info = mercadolivre.read_product(conn, CATALOG_URL, CREDENTIALS, api.get_json, api.post_form)
+    assert info.mpn == "KF432C16BB1/16WP"

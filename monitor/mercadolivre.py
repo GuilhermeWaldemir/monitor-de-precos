@@ -329,7 +329,7 @@ def _product_info(item: dict) -> ProductInfo:
         price=price,
         image_url=(pictures[0].get("secure_url") or pictures[0].get("url")) if pictures else item.get("thumbnail"),
         in_stock=item.get("status") == "active" and int(item.get("available_quantity") or 0) > 0,
-        mpn=_attribute(item, "MPN", "PART_NUMBER", "SELLER_SKU"),
+        mpn=_attribute(item, "MPN", "PART_NUMBER", "MODEL", "ALPHANUMERIC_MODEL", "SELLER_SKU"),
         gtin=_attribute(item, "GTIN", "EAN"),
     )
 
@@ -361,7 +361,7 @@ def _catalog_info(product: dict) -> ProductInfo:
         price=price,
         image_url=(pictures[0].get("secure_url") or pictures[0].get("url")) if pictures else None,
         in_stock=None if quantity is None else int(quantity) > 0,
-        mpn=_attribute(product, "MPN", "PART_NUMBER"),
+        mpn=_attribute(product, "MPN", "PART_NUMBER", "MODEL", "ALPHANUMERIC_MODEL"),
         gtin=_attribute(product, "GTIN", "EAN"),
     )
 
