@@ -37,6 +37,9 @@ AUTHORIZATION_URL = "https://auth.mercadolivre.com.br/authorization"
 TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 API_URL = "https://api.mercadolibre.com"
 PROVIDER = "mercadolivre"
+# The application's own token (client_credentials): no user needed, so the site can always
+# renew it by itself. The user connection (PROVIDER) is optional and takes priority.
+APP_PROVIDER = "mercadolivre-app"
 # "read" to read prices, "offline_access" to be able to renew the access without the user.
 SCOPE = "offline_access read"
 
@@ -171,24 +174,34 @@ def disconnect(conn: sqlite3.Connection) -> None:
 
 
 def is_connected(conn: sqlite3.Connection) -> bool:
+    """True when the user authorized their own account (optional)."""
     return db.get_oauth_token(conn, PROVIDER) is not None
 
 
+def can_read(conn: sqlite3.Connection) -> bool:
+    """True when the site can read prices: the .env credentials alone are enough."""
+    if AppCredentials.from_env() is not None:
+        return True
+    token = db.get_oauth_token(conn, PROVIDER)  # no credentials: only a valid token is left
+    return token is not None and _still_valid(token)
+
+
 def access_token(conn: sqlite3.Connection, credentials: AppCredentials, post_form=None) -> str:
-    """A token ready to use, renewing it when it is close to expiring."""
+    """A token ready to use, renewing it when it is close to expiring.
+
+    Order: the user's token while it is valid, its refresh token when there is one, and
+    otherwise the application's own token, which the site can always get by itself.
+    """
     token = db.get_oauth_token(conn, PROVIDER)
     if token is None:
-        raise MercadoLivreError("Conecte a conta do Mercado Livre em Configurações.")
+        return app_token(conn, credentials, post_form)
 
-    expires_at = datetime.fromisoformat(token["expires_at"])
-    if datetime.now() + RENEW_BEFORE < expires_at:
+    if _still_valid(token):
         return token["access_token"]
 
     if not token["refresh_token"]:
-        raise MercadoLivreError(
-            "O acesso ao Mercado Livre expirou. Conecte de novo em Configurações "
-            "(ou ative a permissão offline_access na aplicação para renovar sozinho)."
-        )
+        # The user connection cannot renew itself; fall back to the application's token.
+        return app_token(conn, credentials, post_form)
 
     answer = _post_token(
         {
@@ -201,6 +214,41 @@ def access_token(conn: sqlite3.Connection, credentials: AppCredentials, post_for
     )
     _save_tokens(conn, answer)
     return answer["access_token"]
+
+
+def app_token(conn: sqlite3.Connection, credentials: AppCredentials, post_form=None) -> str:
+    """The application's own token (grant_type=client_credentials).
+
+    Enough to read public prices and it needs nobody logged in, so the scheduled check
+    keeps working even when the user connection expires.
+    """
+    saved = db.get_oauth_token(conn, APP_PROVIDER)
+    if saved is not None and _still_valid(saved):
+        return saved["access_token"]
+
+    answer = _post_token(
+        {
+            "grant_type": "client_credentials",
+            "client_id": credentials.client_id,
+            "client_secret": credentials.client_secret,
+        },
+        post_form,
+    )
+    if not isinstance(answer, dict) or not answer.get("access_token"):
+        raise MercadoLivreError("O Mercado Livre não devolveu um token para a aplicação.")
+    expires_at = datetime.now() + timedelta(seconds=int(answer.get("expires_in") or 21600))
+    db.save_oauth_token(
+        conn,
+        APP_PROVIDER,
+        access_token=answer["access_token"],
+        refresh_token="",  # client_credentials has none: a new token is asked for instead
+        expires_at=expires_at.isoformat(timespec="seconds"),
+    )
+    return answer["access_token"]
+
+
+def _still_valid(token) -> bool:
+    return datetime.now() + RENEW_BEFORE < datetime.fromisoformat(token["expires_at"])
 
 
 def _save_tokens(conn: sqlite3.Connection, answer: dict) -> bool:

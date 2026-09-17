@@ -7,6 +7,22 @@ from monitor.app import create_app
 from tests.helpers import TEST_EMAIL, TEST_PASSWORD, fake_fetch
 
 
+# Real credentials (Mercado Livre, Gmail) live in the developer's .env. If they leaked into
+# the tests, a test could call the real API by accident — tests must never touch the internet.
+SECRET_VARIABLES = (
+    "MONITOR_ML_CLIENT_ID", "MONITOR_ML_CLIENT_SECRET", "MONITOR_ML_REDIRECT_URI",
+    "MONITOR_SMTP_USER", "MONITOR_SMTP_PASSWORD",
+)
+
+
+@pytest.fixture(autouse=True)
+def isolate_from_the_real_env(monkeypatch):
+    """Every test runs as if the machine had no .env."""
+    monkeypatch.setattr("monitor.app.load_env_file", lambda *args, **kwargs: None)
+    for name in SECRET_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def conn(tmp_path):
     """A fresh database in a temporary folder for each test."""

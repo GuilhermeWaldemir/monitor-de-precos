@@ -180,9 +180,11 @@ def test_token_about_to_expire_is_renewed(conn):
     assert db.get_oauth_token(conn, "mercadolivre")["refresh_token"] == "REFRESH-NOVO"
 
 
-def test_reading_without_connecting(conn):
-    with pytest.raises(MercadoLivreError, match="Conecte a conta"):
-        mercadolivre.access_token(conn, CREDENTIALS)
+def test_reading_without_connecting_uses_the_application_token(conn):
+    """Nobody connected: the site asks for its own token instead of failing."""
+    api = FakeApi(token_answer={"access_token": "TOKEN-APP", "expires_in": 21600})
+    assert mercadolivre.access_token(conn, CREDENTIALS, api.post_form) == "TOKEN-APP"
+    assert api.token_calls[0]["grant_type"] == "client_credentials"
 
 
 def test_disconnect(conn):
@@ -213,13 +215,14 @@ def test_connect_without_offline_access_still_works_for_6_hours(conn):
     assert mercadolivre.access_token(conn, CREDENTIALS, api.post_form) == "SO-6-HORAS"
 
 
-def test_expired_access_without_refresh_token_asks_to_connect_again(conn):
+def test_expired_access_without_refresh_token_uses_the_application_token(conn):
+    """The user connection expired and cannot renew itself: fall back to the app token."""
     api = FakeApi(token_answer={"access_token": "VELHO", "expires_in": 60})  # expires in 1 minute
     mercadolivre.connect(conn, CREDENTIALS, "CODE", post_form=api.post_form)
+    api.token_answer = {"access_token": "TOKEN-APP", "expires_in": 21600}
 
-    with pytest.raises(MercadoLivreError, match="expirou. Conecte de novo"):
-        mercadolivre.access_token(conn, CREDENTIALS, api.post_form)
-    assert len(api.token_calls) == 1  # did not try to renew with an empty refresh token
+    assert mercadolivre.access_token(conn, CREDENTIALS, api.post_form) == "TOKEN-APP"
+    assert api.token_calls[-1]["grant_type"] == "client_credentials"  # never with an empty refresh token
 
 
 # ---------- Reading a product ----------
@@ -377,3 +380,68 @@ def test_authorization_url_asks_for_offline_access():
     """offline_access is what makes Mercado Livre send a refresh token."""
     url = mercadolivre.authorization_url(CREDENTIALS, "estado")
     assert "scope=offline_access+read" in url or "scope=offline_access%20read" in url
+
+
+# ---------- Application token (client_credentials), no user needed ----------
+
+APP_TOKEN_ANSWER = {"access_token": "TOKEN-APP", "expires_in": 21600, "scope": "offline_access read"}
+
+
+def test_app_token_is_asked_with_client_credentials(conn):
+    api = FakeApi(token_answer=APP_TOKEN_ANSWER)
+
+    assert mercadolivre.app_token(conn, CREDENTIALS, api.post_form) == "TOKEN-APP"
+    assert api.token_calls[0] == {
+        "grant_type": "client_credentials", "client_id": "123", "client_secret": "segredo",
+    }
+    assert db.get_oauth_token(conn, "mercadolivre-app")["refresh_token"] == ""
+
+
+def test_app_token_is_reused_while_valid(conn):
+    api = FakeApi(token_answer=APP_TOKEN_ANSWER)
+    mercadolivre.app_token(conn, CREDENTIALS, api.post_form)
+    mercadolivre.app_token(conn, CREDENTIALS, api.post_form)
+    assert len(api.token_calls) == 1  # only one call to the API
+
+
+def test_app_token_is_renewed_when_it_expires(conn):
+    api = FakeApi(token_answer={**APP_TOKEN_ANSWER, "expires_in": 60})
+    mercadolivre.app_token(conn, CREDENTIALS, api.post_form)
+    api.token_answer = {**APP_TOKEN_ANSWER, "access_token": "TOKEN-APP-2"}
+
+    assert mercadolivre.app_token(conn, CREDENTIALS, api.post_form) == "TOKEN-APP-2"
+
+
+def test_reading_without_connecting_the_account_uses_the_app_token(conn):
+    """The user connection is optional: the .env credentials are enough to read prices."""
+    api = FakeApi(token_answer=APP_TOKEN_ANSWER)
+    api.answers = {"https://api.mercadolibre.com/items/MLB1234567890": ITEM_ANSWER}
+
+    info = mercadolivre.read_product(conn, ITEM_URL, CREDENTIALS, api.get_json, api.post_form)
+
+    assert info.price == Decimal("899.90")
+    assert api.calls[0]["token"] == "TOKEN-APP"
+    assert not mercadolivre.is_connected(conn)  # no user account involved
+
+
+def test_expired_user_connection_falls_back_to_the_app_token(conn):
+    api = connect(conn, expires_in=60)  # user token, no refresh token in this answer
+    db.save_oauth_token(
+        conn, "mercadolivre", access_token="VELHO", refresh_token="",
+        expires_at=datetime.now().isoformat(timespec="seconds"),
+    )
+    api.token_answer = APP_TOKEN_ANSWER
+
+    assert mercadolivre.access_token(conn, CREDENTIALS, api.post_form) == "TOKEN-APP"
+
+
+def test_can_read_with_credentials_only(conn, monkeypatch):
+    monkeypatch.setenv("MONITOR_ML_CLIENT_ID", "123")
+    monkeypatch.setenv("MONITOR_ML_CLIENT_SECRET", "segredo")
+    assert mercadolivre.can_read(conn) is True
+
+
+def test_cannot_read_without_credentials_and_without_connection(conn, monkeypatch):
+    monkeypatch.delenv("MONITOR_ML_CLIENT_ID", raising=False)
+    monkeypatch.delenv("MONITOR_ML_CLIENT_SECRET", raising=False)
+    assert mercadolivre.can_read(conn) is False

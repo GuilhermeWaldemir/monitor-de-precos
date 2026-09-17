@@ -42,7 +42,7 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 | KaBuM! | ✅ JSON-LD | Precisa de `Accept`/`Accept-Language`; sem eles dá timeout. Código do fabricante vem no nome |
 | Terabyte | ✅ JSON-LD | Com `urllib` deu 403; com `requests` funciona. Código vem no campo `mpn` |
 | Amazon | ✅ HTML (`monitor/amazon.py`) | Sem JSON-LD. A mesma URL alterna entre layout com oferta principal e só "outras ofertas"; no segundo caso o leitor registra erro em vez de usar o preço "a partir de" |
-| Mercado Livre | ✅ API oficial (`monitor/mercadolivre.py`) | A página bloqueia robôs. A leitura usa a **API oficial com OAuth**: crie a aplicação em developers.mercadolivre.com.br, ponha App ID/Secret no `.env` e conecte em Configurações. Sem conexão, cai no antigo bloqueio e usa preço manual/captura |
+| Mercado Livre | ✅ API oficial (`monitor/mercadolivre.py`) | A página bloqueia robôs. A leitura usa a **API oficial**: crie a aplicação em developers.mercadolivre.com.br e ponha App ID/Secret no `.env`. O site pega sozinho um token da aplicação (`client_credentials`, 6 h, renovado quando precisa), então **não é preciso conectar conta**. Conectar a conta (OAuth) é opcional e tem prioridade enquanto o token dela vale; sem `offline_access` ela não renova e o site volta ao token da aplicação |
 | Magazine Luiza | ❌ | 403 até no `robots.txt`. Usar preço manual |
 | Pichau | ❌ (testado em 2026-09-16) | O `robots.txt` **permite** páginas de produto, mas a proteção anti-robô devolve 403 para cliente identificado. Usar captura/preço manual |
 | promofarma.com.br | ✅ JSON-LD | Apareceu num produto cadastrado pelo Guilherme e funciona sem ajuste |

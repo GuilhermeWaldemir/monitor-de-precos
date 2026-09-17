@@ -47,7 +47,7 @@ def check_link(
 
 def _read(conn: sqlite3.Connection, url: str, fetch: Fetch, read_ml: MlReader | None):
     """Mercado Livre goes through its official API when connected; everything else reads the page."""
-    if mercadolivre.handles(url) and mercadolivre.is_connected(conn):
+    if mercadolivre.handles(url) and mercadolivre.can_read(conn):
         return (read_ml or mercadolivre.read_product)(conn, url)
     return reader_for(url)(fetch(url))
 
