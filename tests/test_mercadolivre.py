@@ -371,3 +371,9 @@ def test_api_error_does_not_stop_the_other_stores(conn):
     results = checker.check_product(conn, product_id, fetch=fake_fetch, read_ml=read_ml)
     assert [r.ok for r in results] == [True, False]
     assert "não encontrado" in results[1].message
+
+
+def test_authorization_url_asks_for_offline_access():
+    """offline_access is what makes Mercado Livre send a refresh token."""
+    url = mercadolivre.authorization_url(CREDENTIALS, "estado")
+    assert "scope=offline_access+read" in url or "scope=offline_access%20read" in url

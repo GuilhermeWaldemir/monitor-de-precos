@@ -37,6 +37,8 @@ AUTHORIZATION_URL = "https://auth.mercadolivre.com.br/authorization"
 TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 API_URL = "https://api.mercadolibre.com"
 PROVIDER = "mercadolivre"
+# "read" to read prices, "offline_access" to be able to renew the access without the user.
+SCOPE = "offline_access read"
 
 TIMEOUT_SECONDS = 20
 # Renew a little before the token really expires, so a check never fails by a few seconds.
@@ -120,6 +122,9 @@ def authorization_url(credentials: AppCredentials, state: str, code_challenge: s
         "client_id": credentials.client_id,
         "redirect_uri": credentials.redirect_uri,
         "state": state,
+        # Asking for offline_access is what makes Mercado Livre send a refresh token,
+        # so the access renews itself instead of dying after 6 hours.
+        "scope": SCOPE,
     }
     if code_challenge:
         params.update(code_challenge=code_challenge, code_challenge_method="S256")
