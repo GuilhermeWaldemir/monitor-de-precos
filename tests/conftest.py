@@ -1,8 +1,9 @@
 """Shared pytest fixtures (pytest loads this file automatically)."""
 
 import pytest
+from flask.testing import FlaskClient
 
-from monitor import db
+from monitor import csrf, db
 from monitor.app import create_app
 from tests.helpers import TEST_EMAIL, TEST_PASSWORD, fake_fetch
 
@@ -55,11 +56,33 @@ def mailbox():
     return FakeMailbox()
 
 
+class BrowserClient(FlaskClient):
+    """Posts like a real browser: carries the CSRF token that the forms would carry.
+
+    Without this, every POST in the tests would be refused. Turning the protection off
+    during the tests would be worse: they would stop testing the real site.
+    """
+
+    def post(self, *args, **kwargs):
+        data = kwargs.get("data")
+        if data is None or (isinstance(data, dict) and csrf.FIELD_NAME not in data):
+            with self.session_transaction() as session:
+                token = csrf.token_for(session)
+            kwargs["data"] = {**(data or {}), csrf.FIELD_NAME: token}
+        return super().post(*args, **kwargs)
+
+
 @pytest.fixture
-def anonymous_client(db_path, mailbox):
+def app(db_path, mailbox):
+    application = create_app(db_path=db_path, fetch=fake_fetch, send_email=mailbox)
+    application.config["TESTING"] = True
+    return application
+
+
+@pytest.fixture
+def anonymous_client(app):
     """A visitor: can look around, but cannot change anything."""
-    app = create_app(db_path=db_path, fetch=fake_fetch, send_email=mailbox)
-    app.config["TESTING"] = True
+    app.test_client_class = BrowserClient
     return app.test_client()
 
 
@@ -71,3 +94,10 @@ def client(anonymous_client):
         data={"email": TEST_EMAIL, "password": TEST_PASSWORD, "password_confirm": TEST_PASSWORD},
     )
     return anonymous_client
+
+
+@pytest.fixture
+def client_without_token(app):
+    """A plain client that sends no CSRF token: used to test the protection itself."""
+    app.test_client_class = FlaskClient
+    return app.test_client()

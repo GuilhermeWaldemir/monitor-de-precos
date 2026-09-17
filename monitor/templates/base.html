@@ -48,6 +48,7 @@
           <div class="user-menu-panel">
             <p class="muted">Alertas de preço vão para<br><strong>{{ current_user.email }}</strong></p>
             <form method="post" action="{{ url_for('logout') }}">
+              {{ csrf_field() }}
               <button type="submit" class="button button-ghost button-small">{{ icon("logout", 16) }}<span>Sair</span></button>
             </form>
           </div>
@@ -83,6 +84,7 @@
       <details class="new-category">
         <summary class="nav-item nav-item-muted">{{ icon("plus") }}<span class="nav-label">Nova categoria</span></summary>
         <form method="post" action="{{ url_for('create_category') }}" class="new-category-form">
+          {{ csrf_field() }}
           <label class="sr-only" for="new-category-name">Nome da nova categoria</label>
           <input id="new-category-name" name="name" maxlength="40" placeholder="Ex.: Livros" required>
           {{ icon_picker("new-category", "tag", category_icons) }}

@@ -33,6 +33,7 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 - **Mudança de esquema com dados reais:** escrever migração em `db.py` (ex.: `_migrate_allow_capture_source`), testada a partir de um banco no formato antigo. **Fazer backup de `data/monitor.db` antes**, porque o servidor em `--debug` roda o `init_db` a cada arquivo salvo.
 - **Contas (2026-09-16):** o site tem cadastro e login (tabela `users`, senha só como *hash*). **Visitante vê, mas não mexe:** todo POST e as telas que só servem para mudar dados exigem login. Os **produtos continuam compartilhados** entre as contas; cada conta serve para entrar e receber os alertas de preço no e-mail dela.
 - **Alerta de preço:** e-mail quando o melhor preço de um produto cair **4% ou mais** em relação ao último melhor preço conhecido; depois de avisar, o preço novo vira a referência (não repetir aviso). O envio usa **SMTP** (`smtplib`), com as credenciais no `.env` (veja `.env.example`); se o e-mail falhar, o site continua funcionando e o alerta fica sem `emailed_at` para tentar depois. Nos testes, `create_app` recebe um `send_email` falso.
+- **Proteção CSRF (2026-09-17):** todo POST precisa do token da sessão (`monitor/csrf.py`); os formulários o incluem com `{{ csrf_field() }}`, vindo do `context_processor`. Formulário novo sem essa linha = erro 400. Nos testes a proteção **continua ligada**: o `BrowserClient` do `conftest.py` manda o token como um navegador.
 - **Sem estoque não vira melhor preço**, mas continua aparecendo.
 - **Sem IA ou LLM** no núcleo.
 
@@ -83,6 +84,7 @@ monitor-de-precos/
 │   ├── capture.py      # favorito "Capturar preço": gera o link javascript: e valida o que ele envia
 │   ├── search.py       # barra de pesquisa (nome sem acentos, parte da palavra, código/EAN)
 │   ├── auth.py         # contas: regras de e-mail/senha, cadastro, login (hash do Werkzeug)
+│   ├── csrf.py         # token anti-CSRF por sessão (criar, conferir, campo escondido)
 │   ├── alerts.py       # regra da queda de 4% (preço de referência por produto), histórico e texto do e-mail
 │   ├── emailer.py      # envio por SMTP (smtplib); configuração vem do .env
 │   ├── mercadolivre.py # API oficial do Mercado Livre (OAuth, tokens, leitura de anúncio/catálogo)
@@ -92,7 +94,7 @@ monitor-de-precos/
 │   └── static/         # style.css, js/, vendor/chart.umd.min.js, fonts/ (OFL), logo.svg + logo-mark*.png
 ├── tests/
 │   ├── helpers.py      # URLs de exemplo, ids das categorias e read_fixture()
-│   ├── conftest.py     # fixture `conn` (banco temporário)
+│   ├── conftest.py     # fixtures: banco temporário, caixa de e-mail falsa e clientes (com e sem token CSRF)
 │   └── fixtures/       # HTML real salvo: KaBuM!, Terabyte, Amazon (2 layouts, sem script/style), bloqueio do Mercado Livre
 ├── data/monitor.db     # banco local (fora do Git)
 └── docs/problemas-resolvidos.md

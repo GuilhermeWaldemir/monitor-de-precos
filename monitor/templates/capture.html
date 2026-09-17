@@ -36,6 +36,7 @@
 </section>
 
 <form class="card form" method="post" action="{{ url_for('save_capture') }}">
+  {{ csrf_field() }}
   {#- The captured data travels again in hidden fields; the server validates it again. -#}
   <input type="hidden" name="url" value="{{ page.url }}">
   <input type="hidden" name="name" value="{{ page.name }}">

@@ -21,6 +21,7 @@
 
     <form class="form" method="post"
           action="{{ url_for('signup') if signing_up else url_for('login', next=next_path) }}">
+      {{ csrf_field() }}
       <label for="email">E-mail</label>
       <input id="email" name="email" type="email" value="{{ form.get('email', '') }}"
              autocomplete="email" required autofocus>

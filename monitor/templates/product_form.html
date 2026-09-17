@@ -19,6 +19,7 @@
 <form class="card form" method="post"
       action="{{ url_for('edit_product', product_id=product.id) if editing else url_for('create_product') }}"
       {% if not editing %}data-busy="Verificando preços…"{% endif %}>
+  {{ csrf_field() }}
 
   {% if error %}
     <p class="flash flash-error" role="alert">

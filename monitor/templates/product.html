@@ -45,11 +45,13 @@
     <div class="actions">
       {% if current_user %}
       <form method="post" action="{{ url_for('check_product', product_id=product.id) }}" data-busy="Verificando…">
+        {{ csrf_field() }}
         <button type="submit" class="button">{{ icon("refresh", 16) }}<span>Verificar preços agora</span></button>
       </form>
       <a class="button button-ghost" href="{{ url_for('edit_product', product_id=product.id) }}">{{ icon("pencil", 16) }}<span>Editar</span></a>
       <form method="post" action="{{ url_for('delete_product', product_id=product.id) }}"
             data-confirm="Remover “{{ product.name }}” e todo o histórico dele?">
+        {{ csrf_field() }}
         <button type="submit" class="button button-ghost button-danger">{{ icon("trash", 16) }}<span>Excluir</span></button>
       </form>
       {% else %}
@@ -66,6 +68,7 @@
     <details class="add-source">
       <summary class="button button-ghost button-small">{{ icon("plus", 16) }}<span>Adicionar fonte</span></summary>
       <form method="post" action="{{ url_for('add_link', product_id=product.id) }}" class="add-source-form" data-busy="Adicionando…">
+        {{ csrf_field() }}
         <label for="source-url">Link do mesmo produto em outra loja</label>
         <div class="input-row">
           <input id="source-url" name="url" type="url" placeholder="https://www.amazon.com.br/dp/..." required>

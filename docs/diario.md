@@ -28,7 +28,8 @@ Etapa 13 Motor do alerta (queda de 4%) ....... ✅  298 testes
 Etapa 14 Envio do alerta por e-mail .......... ✅  312 testes
 Etapa 15 API oficial do Mercado Livre ........ 🔍  343 testes
 Etapa 16 Verificação agendada (12:30) ........ 🔍  349 testes
-Etapa 17+ ver "Próximos passos"
+Etapa 17 Proteção CSRF nos formulários ....... 🔍  385 testes
+Etapa 18+ ver "Próximos passos"
 ```
 
 ---
@@ -517,6 +518,31 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 ---
 
+## Etapa 17: Proteção CSRF nos formulários 🔍
+*2026-09-17 · 385 testes*
+
+**Objetivo:** impedir que outro site consiga mandar comandos ao Monitor usando a sessão do usuário.
+
+**O problema, em uma frase:** o Guilherme está logado no Monitor; abre outra aba com um site qualquer; esse site tem um formulário escondido apontando para `POST /products/3/delete`. O navegador envia o cookie da sessão junto, e o servidor obedece, porque o pedido parece legítimo. Isso é **CSRF** (*Cross-Site Request Forgery*).
+
+**O que foi adicionado**
+- `monitor/csrf.py` (a regra, sem Flask): `token_for` cria um valor aleatório por sessão (`secrets.token_urlsafe`), `is_valid` compara com `secrets.compare_digest` e `hidden_field` monta o `<input type="hidden">`.
+- Um `before_request` no `app.py` recusa **todo POST** sem o token, com erro **400** e uma mensagem em português. Fica **depois** da checagem de login, para que um visitante continue recebendo "Entre na sua conta" em vez de um erro seco.
+- `{{ csrf_field() }}` nos **16 formulários** do site, vindo de um `context_processor` (assim nenhuma rota precisa lembrar de passar o token).
+- Cookie da sessão com `SameSite=Lax` e `HttpOnly`: camadas extras, mas a checagem do token é o que de fato protege.
+- 13 testes: o token nasce uma vez por sessão, sessões diferentes têm tokens diferentes, token errado/vazio/ausente é recusado, o formulário carrega o campo, o POST recusado **não muda nada** no banco e as páginas de leitura (GET) continuam abertas.
+
+**Conceitos para explicar em entrevista**
+- **CSRF × XSS:** CSRF é o atacante usando *a sua sessão* de fora; XSS é código do atacante rodando *dentro* da sua página. O token resolve o primeiro; escapar o HTML (o Jinja já faz) resolve o segundo.
+- **Por que o token funciona:** a política de mesma origem do navegador impede que outro site **leia** a nossa página, então ele não descobre o valor.
+- **`secrets` e não `random`:** `random` é previsível (serve para jogos, não para segredos).
+- **`compare_digest`:** compara em tempo constante, para não vazar o token para quem cronometra as respostas.
+- **Testar sem desligar a proteção:** o cliente de teste (`BrowserClient`, no `conftest.py`) passou a mandar o token como um navegador mandaria. Desligar a proteção nos testes faria eles testarem um site que não existe (*Problema 15*).
+
+**Commit sugerido:** `feat: protect every form with a CSRF token`
+
+---
+
 ## Próximos passos
 
 Tarefas do arquivo `mudanças`, feitas **uma por vez**, com revisão entre elas:
@@ -542,5 +568,6 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Verificação agendada | ✅ 2026-09-16: todo dia às 12:30 (Agendador de Tarefas do Windows) |
 | **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): contas ✅ · motor do alerta ✅ · envio por SMTP ✅ (falta o Guilherme configurar o `.env` e testar o envio de verdade) | 🔍 |
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
+| **Proteção CSRF** nos formulários (segurança antes do deploy) | 🔍 2026-09-17 |
 | Deploy com modo demonstração | 💡 |
 | README bilíngue com GIF | 💡 |

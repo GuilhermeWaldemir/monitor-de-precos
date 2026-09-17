@@ -41,6 +41,7 @@
         <details class="manual">
           <summary>informar preço</summary>
           <form method="post" action="{{ url_for('manual_price', link_id=offer.link_id) }}" class="inline-form">
+            {{ csrf_field() }}
             <label class="sr-only" for="price-{{ offer.link_id }}">Preço na {{ offer.store }}</label>
             <input id="price-{{ offer.link_id }}" name="price" inputmode="decimal" placeholder="Ex.: 929,99" required>
             <button type="submit" class="button button-small">Salvar</button>
@@ -48,6 +49,7 @@
         </details>
         <form method="post" action="{{ url_for('delete_link', link_id=offer.link_id) }}"
               data-confirm="Remover a fonte {{ offer.store }} e o histórico dela?">
+          {{ csrf_field() }}
           <button type="submit" class="link-button">remover</button>
         </form>
       </span>

@@ -23,6 +23,7 @@
 {% else %}
 
 <form class="card form" method="post" action="{{ url_for('settings') }}">
+  {{ csrf_field() }}
   <h2>Aparência</h2>
 
   <fieldset class="settings-fieldset" data-preview="theme">
@@ -152,6 +153,7 @@ MONITOR_ML_REDIRECT_URI={{ url_for('mercadolivre_callback', _external=True) }}</
       {% endif %}
       <form method="post" action="{{ url_for('mercadolivre_disconnect') }}"
             data-confirm="Desconectar a conta do Mercado Livre?">
+        {{ csrf_field() }}
         <button type="submit" class="button button-ghost button-danger">{{ icon("logout", 16) }}<span>Desconectar</span></button>
       </form>
     {% else %}
@@ -161,6 +163,7 @@ MONITOR_ML_REDIRECT_URI={{ url_for('mercadolivre_callback', _external=True) }}</
     <details class="add-source">
       <summary class="button button-ghost button-small">{{ icon("plus", 16) }}<span>Colar o código manualmente</span></summary>
       <form method="post" action="{{ url_for('mercadolivre_code') }}" class="add-source-form">
+        {{ csrf_field() }}
         <label for="ml-answer">URL de retorno (ou só o código)</label>
         <div class="input-row">
           <input id="ml-answer" name="answer" placeholder="https://exemplo.com/callback?code=TG-..." required>
@@ -184,6 +187,7 @@ MONITOR_ML_REDIRECT_URI={{ url_for('mercadolivre_callback', _external=True) }}</
       Envio configurado: {{ smtp_config.host }}:{{ smtp_config.port }}, remetente {{ smtp_config.sender }}.
     </p>
     <form method="post" action="{{ url_for('test_email') }}" data-busy="Enviando…">
+      {{ csrf_field() }}
       <button type="submit" class="button">{{ icon("refresh", 16) }}<span>Enviar e-mail de teste</span></button>
     </form>
   {% else %}

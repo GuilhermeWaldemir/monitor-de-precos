@@ -124,3 +124,12 @@ Formato: **Problema → Processo → Solução → Resultado**.
 - **Solução:** ler preços passou a usar o **token da aplicação**, que o site pede sozinho sempre que precisa (guardado como `mercadolivre-app`). Conectar a conta virou **opcional**: se existir e estiver válida, ela tem prioridade; quando vence sem `refresh_token`, o site cai de volta no token da aplicação, sem erro para o usuário.
 - **Descoberta no meio do caminho:** um teste tentou chamar a API **de verdade** porque o `.env` da máquina vazava para dentro dos testes. Agora o `conftest.py` esconde as credenciais de todos os testes, garantindo a regra "testes nunca acessam a internet".
 - **Resultado:** os preços do Mercado Livre são lidos sem nenhuma ação do usuário, e a verificação das 12:30 não depende mais de reconectar. Lição: quando um caminho do protocolo emperra, vale olhar **os outros fluxos que o próprio protocolo oferece** antes de brigar com a interface do portal.
+
+## 15. Ligar a proteção CSRF sem transformar os testes em mentira
+*2026-09-17*
+
+- **Problema:** ao exigir um token em todo POST, **quase todos os testes do site quebraram de uma vez** — eles enviavam formulários sem token, como um atacante faria. A saída mais rápida seria desligar a proteção quando `TESTING` estivesse ligado, que é o que muitos projetos fazem.
+- **Processo:** desligar a proteção nos testes significa testar um site **diferente** do que vai para o ar: exatamente o caminho que deixa passar um formulário sem `{{ csrf_field() }}`. Em vez disso, o cliente de teste passou a se comportar como um navegador: um `BrowserClient` (subclasse de `FlaskClient`, no `conftest.py`) lê o token da sessão e o acrescenta a todo POST, do mesmo jeito que a página faria. Para testar a proteção em si existe um `client_without_token`, que é o cliente comum.
+- **Solução:** proteção sempre ligada, inclusive nos testes, e 13 testes novos cobrindo o token e a recusa.
+- **Detalhe de ordem:** a checagem do token fica **depois** da checagem de login. Assim um visitante que envia um formulário continua vendo "Entre na sua conta" em vez de um erro 400 sem explicação, e nada é alterado nos dois casos.
+- **Resultado:** 385 testes passando, e um teste garante que o POST recusado **não muda nada** no banco. Lição: quando um teste fica no caminho de uma medida de segurança, o teste é que precisa aprender a agir como o usuário de verdade.

@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 
-from monitor import alerts, auth, checker, compare, db, emailer, history, mercadolivre
+from monitor import alerts, auth, checker, compare, csrf, db, emailer, history, mercadolivre
 from monitor.config import load_env_file
 from monitor.capture import bookmarklet_href, read_captured
 from monitor.fetcher import fetch_html
@@ -54,6 +54,10 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
     load_env_file()  # passwords and SMTP settings live in .env, outside Git
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-secret")
+    # Second layer against CSRF: the browser itself stops sending this cookie on a
+    # POST that another site started. The token check below is what really protects us.
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True  # JavaScript cannot read the session cookie
     app.config["DB_PATH"] = db_path
     fetch = fetch or fetch_html
     send_email = send_email or emailer.send_email
@@ -90,6 +94,19 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
         if request.method == "POST" or request.endpoint in PAGES_THAT_NEED_LOGIN:
             flash("Entre na sua conta para fazer isso.", "error")
             return redirect(url_for("login", next=request.path))
+        return None
+
+    @app.before_request
+    def check_csrf_token():
+        """Every POST must carry this session's token (see monitor/csrf.py)."""
+        if request.method != "POST":
+            return None
+        if csrf.is_valid(session, request.form.get(csrf.FIELD_NAME)):
+            return None
+        abort(400, description=(
+            "Este formulário perdeu a identificação de segurança. "
+            "Volte, atualize a página (F5) e envie de novo."
+        ))
         return None
 
     @app.route("/signup", methods=["GET", "POST"])
@@ -152,6 +169,8 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
             "settings": load_settings(get_conn()),
             "category_icons": CATEGORY_ICONS,  # for the icon picker (sidebar and category page)
             "current_user": current_user(),
+            # Every form calls {{ csrf_field() }}; the token is only created when used.
+            "csrf_field": lambda: csrf.hidden_field(session),
         }
 
     @app.template_filter("brl")
