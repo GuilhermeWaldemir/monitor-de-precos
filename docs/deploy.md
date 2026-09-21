@@ -1,5 +1,7 @@
 # Colocar o site no ar
 
+**No ar:** <https://monitor-de-precos-4fj2.onrender.com>
+
 O site publicado roda em **modo demonstração**: produtos de exemplo já cadastrados e
 ninguém consegue alterar nada. Os motivos estão no `monitor/demo.py` e na Etapa 19 do
 diário — em resumo, as lojas bloqueiam servidores na nuvem, e um site aberto sem

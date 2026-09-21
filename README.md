@@ -4,6 +4,8 @@
 
 Compara o preço do **mesmo produto** em várias lojas online brasileiras, guarda o histórico e destaca o melhor preço.
 
+**[Ver o site funcionando →](https://monitor-de-precos-4fj2.onrender.com)** (demonstração com dados de exemplo; a primeira visita pode demorar ~50 s, porque o servidor gratuito dorme quando ninguém acessa)
+
 > Projeto em construção. README completo (PT/EN, GIF de demonstração) virá na fase final.
 
 ## Como funciona

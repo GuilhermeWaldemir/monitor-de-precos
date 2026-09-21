@@ -30,7 +30,7 @@ Etapa 15 API oficial do Mercado Livre ........ 🔍  343 testes
 Etapa 16 Verificação agendada (12:30) ........ 🔍  349 testes
 Etapa 17 Proteção CSRF nos formulários ....... 🔍  385 testes
 Etapa 18 Chave que assina a sessão ........... 🔍  392 testes
-Etapa 19 Modo demonstração e deploy .......... 🔍  421 testes
+Etapa 19 Modo demonstração e deploy .......... ✅  421 testes · no ar
 Etapa 20+ ver "Próximos passos"
 ```
 
@@ -600,7 +600,11 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 **Testes que leem a configuração do deploy** (`tests/test_deploy_config.py`): garantem que o site publicado sobe em modo demonstração, com gunicorn e com a chave sorteada pelo servidor. É o tipo de erro que ninguém percebe olhando, e que custa caro.
 
-**Falta:** o Guilherme criar a conta no Render e apertar o botão (passo a passo em `docs/deploy.md`).
+**No ar desde 2026-09-21:** <https://monitor-de-precos-4fj2.onrender.com>
+
+**Um susto no caminho:** logo depois do deploy, o site não respondia nada de fora — nem 404, nem arquivo estático — mas o TLS conectava em 75 ms. Rodando o app aqui com **as mesmas variáveis do servidor**, ele subia em 1 s e devolvia 200, o que já tirava o código da lista de suspeitos. A resposta estava no log da Render: `"GET / HTTP/1.1" 200 11657` repetido a cada 5 segundos (a própria Render conferindo a saúde) e, no fim, `Handling signal: term`. Ou seja, o deploy **tinha dado certo**: o serviço rodou 15 minutos, não recebeu visita de ninguém e o plano gratuito o desligou. Nenhuma das visitas de fora aparecia no log porque elas morriam esperando a máquina acordar. Lição: **antes de duvidar do código, comparar o que o log do servidor viu com o que o cliente viu** — quando os dois discordam, o problema está no meio do caminho.
+
+**O preço do plano gratuito:** o serviço dorme depois de 15 minutos sem visitas, e a próxima visita espera ~50 s. Para um link no currículo isso pesa, e a alternativa anotada em `docs/deploy.md` é o PythonAnywhere, que não dorme.
 
 ---
 
@@ -631,5 +635,5 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | **Proteção CSRF** nos formulários (segurança antes do deploy) | 🔍 2026-09-17 |
 | **Chave da sessão** fora do código (`.env` ou gerada) | 🔍 2026-09-21 |
-| Deploy: **modo demonstração** (código) ✅ 2026-09-21 · falta escolher a hospedagem | 🔍 |
+| Deploy no Render: <https://monitor-de-precos-4fj2.onrender.com> | ✅ 2026-09-21 |
 | README bilíngue com GIF | 💡 |
