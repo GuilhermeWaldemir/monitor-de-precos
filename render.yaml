@@ -1,0 +1,30 @@
+# Receita do site publicado (Render). Deixar isto no Git significa que a configuração
+# do servidor é revisável como código, em vez de existir só dentro de um painel.
+#
+# Para trocar de hospedagem, o que importa é só o que está aqui: o comando de partida
+# e as variáveis de ambiente. O código Python não sabe em que servidor está rodando.
+services:
+  - type: web
+    name: monitor-de-precos
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    # create_app() é a fábrica do app (monitor/app.py). Um worker basta: a demonstração
+    # só lê dados, e o plano gratuito tem pouca memória.
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 "monitor.app:create_app()"
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+      # Sem isto o site publicado ficaria vazio (as lojas bloqueiam servidores na nuvem)
+      # e qualquer visitante poderia apagar os dados.
+      - key: MONITOR_DEMO
+        value: "1"
+      # O disco do plano gratuito é descartável: o banco é recriado a cada partida,
+      # com os produtos de exemplo do monitor/demo.py.
+      - key: MONITOR_DB_PATH
+        value: /tmp/monitor.db
+      # O Render sorteia um valor e guarda só com ele: a chave nunca passa pelo Git.
+      - key: MONITOR_SECRET_KEY
+        generateValue: true

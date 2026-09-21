@@ -30,7 +30,7 @@ Etapa 15 API oficial do Mercado Livre ........ 🔍  343 testes
 Etapa 16 Verificação agendada (12:30) ........ 🔍  349 testes
 Etapa 17 Proteção CSRF nos formulários ....... 🔍  385 testes
 Etapa 18 Chave que assina a sessão ........... 🔍  392 testes
-Etapa 19 Modo demonstração (para o deploy) ... 🔍  415 testes
+Etapa 19 Modo demonstração e deploy .......... 🔍  421 testes
 Etapa 20+ ver "Próximos passos"
 ```
 
@@ -594,7 +594,13 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 **Commit sugerido:** `feat: add demo mode for the public deployment`
 
-**Falta para o site ir ao ar:** escolher a hospedagem, criar o servidor com `MONITOR_DEMO=1` e apontar o deploy para o GitHub.
+**A receita do servidor** ficou em [`render.yaml`](../render.yaml), dentro do Git: comando de partida (`gunicorn`), as variáveis (`MONITOR_DEMO=1`, `MONITOR_DB_PATH`) e a `MONITOR_SECRET_KEY` sorteada pelo próprio Render, que nunca passa pelo repositório. Escolhi o **Render** porque não pede cartão e publica sozinho a cada `git push` — o mesmo push que já roda os testes. Trocar de hospedagem depois mexe só nesse arquivo, nunca no Python: o passo a passo e as alternativas estão em [`docs/deploy.md`](deploy.md).
+
+**Dependência nova: `gunicorn`.** O `flask run` é um servidor de desenvolvimento — ele mesmo avisa na tela para não usar em produção, porque atende um pedido por vez. O gunicorn é o servidor padrão do mundo Python para o site no ar. Ele só roda no Linux do servidor; na máquina do Guilherme continua o `flask run`.
+
+**Testes que leem a configuração do deploy** (`tests/test_deploy_config.py`): garantem que o site publicado sobe em modo demonstração, com gunicorn e com a chave sorteada pelo servidor. É o tipo de erro que ninguém percebe olhando, e que custa caro.
+
+**Falta:** o Guilherme criar a conta no Render e apertar o botão (passo a passo em `docs/deploy.md`).
 
 ---
 

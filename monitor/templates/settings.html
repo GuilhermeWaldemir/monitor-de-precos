@@ -17,8 +17,13 @@
 
 {% if not current_user %}
   <div class="empty">
-    <p><strong>Entre na sua conta para mudar as configurações.</strong></p>
-    <a class="button" href="{{ url_for('login', next=url_for('settings')) }}">Entrar</a>
+    {% if demo %}
+      <p><strong>Esta é uma demonstração: as configurações não podem ser alteradas aqui.</strong></p>
+      <p class="muted">Rodando o projeto na sua máquina, esta tela guarda tema, fonte e animações no banco.</p>
+    {% else %}
+      <p><strong>Entre na sua conta para mudar as configurações.</strong></p>
+      <a class="button" href="{{ url_for('login', next=url_for('settings')) }}">Entrar</a>
+    {% endif %}
   </div>
 {% else %}
 
