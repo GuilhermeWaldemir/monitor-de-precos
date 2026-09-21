@@ -12,7 +12,7 @@ from tests.helpers import TEST_EMAIL, TEST_PASSWORD, fake_fetch
 # the tests, a test could call the real API by accident — tests must never touch the internet.
 SECRET_VARIABLES = (
     "MONITOR_ML_CLIENT_ID", "MONITOR_ML_CLIENT_SECRET", "MONITOR_ML_REDIRECT_URI",
-    "MONITOR_SMTP_USER", "MONITOR_SMTP_PASSWORD",
+    "MONITOR_SMTP_USER", "MONITOR_SMTP_PASSWORD", "MONITOR_SECRET_KEY",
 )
 
 

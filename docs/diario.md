@@ -29,7 +29,8 @@ Etapa 14 Envio do alerta por e-mail .......... ✅  312 testes
 Etapa 15 API oficial do Mercado Livre ........ 🔍  343 testes
 Etapa 16 Verificação agendada (12:30) ........ 🔍  349 testes
 Etapa 17 Proteção CSRF nos formulários ....... 🔍  385 testes
-Etapa 18+ ver "Próximos passos"
+Etapa 18 Chave que assina a sessão ........... 🔍  392 testes
+Etapa 19+ ver "Próximos passos"
 ```
 
 ---
@@ -543,6 +544,29 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 ---
 
+## Etapa 18: A chave que assina a sessão 🔍
+*2026-09-21 · 392 testes*
+
+**Objetivo:** tirar do código a chave que assina o cookie de sessão, antes do deploy.
+
+**Por que isso importa:** o Flask assina o cookie de sessão com a `SECRET_KEY`. É essa assinatura que impede alguém de editar o próprio cookie e escrever ali "sou o usuário 1". O código usava `"dev-only-secret"` como valor padrão — publicado no GitHub. No ar, qualquer pessoa que lesse o repositório poderia forjar uma sessão, entrar como qualquer conta e, junto com ela, forjar o token CSRF da Etapa 17. Uma proteção só vale o quanto vale o segredo em que ela se apoia.
+
+**O que foi adicionado**
+- A chave vem de `MONITOR_SECRET_KEY` no `.env` (mesmo padrão das outras variáveis do projeto).
+- Sem a variável, `db.get_or_create_secret_key()` **gera uma chave aleatória e guarda no banco** (`data/monitor.db`, fora do Git). Em desenvolvimento a sessão sobrevive a reiniciar o servidor, e nenhum segredo fica no código.
+- A chave divide a tabela `settings` com tema e fonte, mas **nunca chega à tela de Configurações**: `load_settings()` só devolve as chaves que conhece (um teste garante isso).
+- `.env.example` explica como gerar uma: `py -c "import secrets; print(secrets.token_urlsafe(32))"`.
+- 7 testes: o `.env` vence, espaços são ignorados, variável vazia cai no banco, a chave se mantém entre reinícios, bancos diferentes têm chaves diferentes, a chave não aparece na tela de Configurações e o login continua funcionando.
+
+**Conceitos para explicar em entrevista**
+- **Cookie assinado × criptografado:** o cookie do Flask é assinado, não secreto — dá para ler o conteúdo, mas não alterá-lo sem a chave. Por isso ele guarda só o `user_id`, nunca uma senha.
+- **Segredo padrão é o pior tipo de segredo:** "funciona sem configurar" convida a subir para produção do jeito que está. Por isso o padrão agora é *gerar*, e nunca um valor fixo.
+- **Efeito de trocar a chave:** todas as sessões abertas deixam de valer (todo mundo é deslogado uma vez). É também a forma de "expulsar todo mundo" se um vazamento acontecer.
+
+**Commit sugerido:** `feat: sign sessions with a key from .env or a generated one`
+
+---
+
 ## Próximos passos
 
 Tarefas do arquivo `mudanças`, feitas **uma por vez**, com revisão entre elas:
@@ -569,5 +593,6 @@ Roteiro geral do projeto (depois das tarefas acima):
 | **Alerta de queda de preço por e-mail** (pedido em 2026-09-16): contas ✅ · motor do alerta ✅ · envio por SMTP ✅ (falta o Guilherme configurar o `.env` e testar o envio de verdade) | 🔍 |
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | **Proteção CSRF** nos formulários (segurança antes do deploy) | 🔍 2026-09-17 |
+| **Chave da sessão** fora do código (`.env` ou gerada) | 🔍 2026-09-21 |
 | Deploy com modo demonstração | 💡 |
 | README bilíngue com GIF | 💡 |

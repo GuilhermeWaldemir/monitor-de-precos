@@ -53,7 +53,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
     """Build the app. Tests pass a temporary database, a fake `fetch` and a fake `send_email`."""
     load_env_file()  # passwords and SMTP settings live in .env, outside Git
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-secret")
+
     # Second layer against CSRF: the browser itself stops sending this cookie on a
     # POST that another site started. The token check below is what really protects us.
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -64,6 +64,12 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
 
     with closing(db.connect(db_path)) as conn:  # closing() closes the connection at the end
         db.init_db(conn)
+        # Signs the session cookie (and with it the CSRF token). In production it comes
+        # from .env; in development the database keeps one random key, so logging in
+        # survives a restart without any secret living in the code.
+        app.config["SECRET_KEY"] = (
+            os.environ.get("MONITOR_SECRET_KEY", "").strip() or db.get_or_create_secret_key(conn)
+        )
 
     def get_conn():
         # One connection per request, closed at the end (teardown below).

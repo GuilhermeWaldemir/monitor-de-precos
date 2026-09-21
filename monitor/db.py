@@ -1,5 +1,6 @@
 """SQLite database: categories, products, store links and price history."""
 
+import secrets
 import sqlite3
 from datetime import datetime
 from decimal import Decimal
@@ -598,6 +599,25 @@ def get_settings_rows(conn: sqlite3.Connection) -> dict[str, str]:
     """Every saved setting as {key: value}. Options never saved simply don't appear here."""
     rows = conn.execute("SELECT key, value FROM settings").fetchall()
     return {row["key"]: row["value"] for row in rows}
+
+
+SECRET_KEY_SETTING = "secret_key"
+
+
+def get_or_create_secret_key(conn: sqlite3.Connection) -> str:
+    """The key Flask signs the session cookie with, kept between restarts.
+
+    Only used when MONITOR_SECRET_KEY is not set (development). A fixed key written in
+    the code would be public on GitHub, and anyone could then forge a session cookie.
+    It shares the settings table, but never reaches the Configurações page: load_settings()
+    in monitor/settings.py keeps only the keys it knows about.
+    """
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (SECRET_KEY_SETTING,)).fetchone()
+    if row is not None and row["value"]:
+        return row["value"]
+    key = secrets.token_urlsafe(32)
+    save_settings_rows(conn, {SECRET_KEY_SETTING: key})
+    return key
 
 
 def save_settings_rows(conn: sqlite3.Connection, items: dict[str, str]) -> None:
