@@ -455,7 +455,9 @@ def add_price_check(
     page_code: str | None = None,
     page_gtin: str | None = None,
     error: str | None = None,
+    checked_at: str | None = None,
 ) -> None:
+    """Saves one check. `checked_at` exists for the demo data, which needs older dates."""
     with conn:
         conn.execute(
             """
@@ -465,7 +467,7 @@ def add_price_check(
             """,
             (
                 link_id,
-                now(),
+                checked_at or now(),
                 source,
                 to_cents(price) if price is not None else None,
                 None if in_stock is None else int(in_stock),

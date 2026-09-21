@@ -421,6 +421,17 @@ details > summary.button::-webkit-details-marker { display: none; }
 .badge-drop { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .flash a { color: inherit; font-weight: 600; }
 
+/* ---------- Demo banner ---------- */
+/* Fica acima de tudo, inclusive da barra do topo: é a primeira coisa a ler no site
+   publicado. Cores suaves do próprio tema, para avisar sem gritar. */
+.demo-banner {
+  margin: 0; padding: var(--space-2) var(--space-4);
+  background: var(--accent-soft); color: var(--text);
+  text-align: center; font-size: 0.9rem; line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
+.demo-banner a { color: var(--accent); font-weight: 600; }
+
 /* ---------- Page header ---------- */
 .page-head {
   display: flex; flex-wrap: wrap; gap: var(--space-4);

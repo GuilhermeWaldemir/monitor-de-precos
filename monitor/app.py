@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 
-from monitor import alerts, auth, checker, compare, csrf, db, emailer, history, mercadolivre
+from monitor import alerts, auth, checker, compare, csrf, db, demo, emailer, history, mercadolivre
 from monitor.config import load_env_file
 from monitor.capture import bookmarklet_href, read_captured
 from monitor.fetcher import fetch_html
@@ -49,9 +49,11 @@ PAGES_THAT_NEED_LOGIN = {
 }
 
 
-def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask:
+def create_app(db_path=None, fetch=None, send_email=None) -> Flask:
     """Build the app. Tests pass a temporary database, a fake `fetch` and a fake `send_email`."""
     load_env_file()  # passwords and SMTP settings live in .env, outside Git
+    # On a server the database lives somewhere else, so the path can come from the environment.
+    db_path = db_path or os.environ.get("MONITOR_DB_PATH", "").strip() or db.DEFAULT_DB_PATH
     app = Flask(__name__)
 
     # Second layer against CSRF: the browser itself stops sending this cookie on a
@@ -70,6 +72,9 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
         app.config["SECRET_KEY"] = (
             os.environ.get("MONITOR_SECRET_KEY", "").strip() or db.get_or_create_secret_key(conn)
         )
+        app.config["DEMO"] = demo.is_on()
+        if app.config["DEMO"]:
+            demo.fill_if_empty(conn)  # o site publicado precisa ter o que mostrar
 
     def get_conn():
         # One connection per request, closed at the end (teardown below).
@@ -91,6 +96,14 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
             user_id = session.get("user_id")
             g.user = db.get_user(get_conn(), user_id) if user_id else None
         return g.user
+
+    @app.before_request
+    def refuse_changes_in_demo_mode():
+        """No site publicado ninguém altera nada: os dados são de exemplo e compartilhados."""
+        if not app.config["DEMO"] or request.method != "POST":
+            return None
+        flash("Este site é uma demonstração: os dados são de exemplo e não podem ser alterados.", "error")
+        return redirect(url_for("index"))  # sempre para a inicial: seguir o referrer abriria um redirecionamento aberto
 
     @app.before_request
     def require_login_to_change_things():
@@ -177,6 +190,7 @@ def create_app(db_path=db.DEFAULT_DB_PATH, fetch=None, send_email=None) -> Flask
             "current_user": current_user(),
             # Every form calls {{ csrf_field() }}; the token is only created when used.
             "csrf_field": lambda: csrf.hidden_field(session),
+            "demo": app.config["DEMO"],
         }
 
     @app.template_filter("brl")

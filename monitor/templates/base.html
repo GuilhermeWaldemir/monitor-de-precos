@@ -15,6 +15,15 @@
 <body>
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
 
+  {% if demo %}
+    <p class="demo-banner" role="status">
+      <strong>Modo demonstração.</strong>
+      Os produtos e preços desta página são <strong>exemplos inventados</strong>, não preços reais das lojas,
+      e nada aqui pode ser alterado.
+      <a href="https://github.com/GuilhermeWaldemir/monitor-de-precos">Ver o código no GitHub</a>
+    </p>
+  {% endif %}
+
   <header class="topbar">
     <a class="brand" href="{{ url_for('index') }}">
       {#- The logo is inline (not an <img>) so it can use the site's colors. -#}
@@ -53,7 +62,7 @@
             </form>
           </div>
         </details>
-      {% else %}
+      {% elif not demo %}
         <a class="button button-ghost" href="{{ url_for('login') }}">Entrar</a>
         <a class="button" href="{{ url_for('signup') }}">Criar conta</a>
       {% endif %}

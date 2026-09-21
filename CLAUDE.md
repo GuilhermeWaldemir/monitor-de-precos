@@ -35,6 +35,7 @@ O Guilherme está no 2º semestre e **precisa conseguir explicar cada linha em e
 - **Alerta de preço:** e-mail quando o melhor preço de um produto cair **4% ou mais** em relação ao último melhor preço conhecido; depois de avisar, o preço novo vira a referência (não repetir aviso). O envio usa **SMTP** (`smtplib`), com as credenciais no `.env` (veja `.env.example`); se o e-mail falhar, o site continua funcionando e o alerta fica sem `emailed_at` para tentar depois. Nos testes, `create_app` recebe um `send_email` falso.
 - **Proteção CSRF (2026-09-17):** todo POST precisa do token da sessão (`monitor/csrf.py`); os formulários o incluem com `{{ csrf_field() }}`, vindo do `context_processor`. Formulário novo sem essa linha = erro 400. Nos testes a proteção **continua ligada**: o `BrowserClient` do `conftest.py` manda o token como um navegador.
 - **Chave da sessão (2026-09-21):** vem de `MONITOR_SECRET_KEY` no `.env`; sem ela, `db.get_or_create_secret_key()` gera uma aleatória e guarda na tabela `settings` (nunca aparece na tela de Configurações, porque `load_settings` filtra as chaves conhecidas). **Nunca** voltar a usar um valor fixo no código.
+- **Modo demonstração (2026-09-21):** com `MONITOR_DEMO=1`, o site cadastra os produtos de **exemplo** do `monitor/demo.py` num banco vazio, mostra uma faixa de aviso, esconde Entrar/Criar conta e **recusa todo POST**. Os preços são **inventados**: publicar os preços reais das lojas seria redistribuir dados delas. `MONITOR_DB_PATH` diz onde fica o banco no servidor.
 - **Sem estoque não vira melhor preço**, mas continua aparecendo.
 - **Sem IA ou LLM** no núcleo.
 
@@ -89,6 +90,7 @@ monitor-de-precos/
 │   ├── alerts.py       # regra da queda de 4% (preço de referência por produto), histórico e texto do e-mail
 │   ├── emailer.py      # envio por SMTP (smtplib); configuração vem do .env
 │   ├── mercadolivre.py # API oficial do Mercado Livre (OAuth, tokens, leitura de anúncio/catálogo)
+│   ├── demo.py         # modo demonstração: dados de exemplo e site somente leitura
 │   ├── daily_check.py  # verificação agendada: roda sozinha, avisa por e-mail e grava log
 │   ├── config.py       # leitor do .env (segredos fora do Git)
 │   ├── templates/      # base (layout+barra lateral), index (grade), product, product_form, settings, parciais _*.html

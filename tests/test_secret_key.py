@@ -53,3 +53,13 @@ def test_the_login_still_works_with_the_generated_key(client):
     """A round trip: the cookie is signed with the key that came from the database."""
     page = client.get("/").get_data(as_text=True)
     assert "Sair" in page  # the `client` fixture is logged in
+
+
+def test_the_database_path_can_come_from_the_environment(tmp_path, mailbox, monkeypatch):
+    """On a server the database is not in ./data (see MONITOR_DB_PATH in .env.example)."""
+    wanted = tmp_path / "outro-lugar" / "monitor.db"
+    wanted.parent.mkdir()
+    monkeypatch.setenv("MONITOR_DB_PATH", str(wanted))
+    app = create_app(fetch=fake_fetch, send_email=mailbox)
+    assert str(app.config["DB_PATH"]) == str(wanted)
+    assert wanted.exists()

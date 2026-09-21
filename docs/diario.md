@@ -30,7 +30,8 @@ Etapa 15 API oficial do Mercado Livre ........ 🔍  343 testes
 Etapa 16 Verificação agendada (12:30) ........ 🔍  349 testes
 Etapa 17 Proteção CSRF nos formulários ....... 🔍  385 testes
 Etapa 18 Chave que assina a sessão ........... 🔍  392 testes
-Etapa 19+ ver "Próximos passos"
+Etapa 19 Modo demonstração (para o deploy) ... 🔍  415 testes
+Etapa 20+ ver "Próximos passos"
 ```
 
 ---
@@ -567,6 +568,36 @@ Cada produto guarda um **preço de referência** (`products.alert_reference_cent
 
 ---
 
+## Etapa 19: Modo demonstração 🔍
+*2026-09-21 · 415 testes*
+
+**Objetivo:** deixar o site pronto para ficar no ar — é a parte do deploy que é código, antes da parte que é servidor.
+
+**Dois problemas que só aparecem quando o site é público**
+1. **Servidor na nuvem é bloqueado pelas lojas** (o IP é de datacenter). Sem ajuda, a demonstração abriria vazia.
+2. **Site aberto é site de todo mundo.** Qualquer visitante poderia apagar os produtos.
+
+**O que foi adicionado**
+- `monitor/demo.py`: a variável `MONITOR_DEMO` liga o modo; `fill_if_empty()` cadastra 4 produtos de exemplo com 5 verificações cada (gráfico com histórico), escolhidos para mostrar as regras do site funcionando: uma oferta **mais barata e esgotada** que não vira melhor preço, uma loja que **bloqueou** (com o motivo na tela), preços **manuais**, um produto **sem código** e uma **queda de 4%+** já registrada como alerta.
+- Rodar de novo não duplica nada — importante porque o disco da nuvem é descartável e o banco é recriado a cada partida.
+- No site: faixa de aviso no topo, botões "Entrar" e "Criar conta" escondidos e **todo POST recusado** com uma explicação. O bloqueio vem antes da checagem de login, para a mensagem ser a certa.
+- `MONITOR_DB_PATH` diz onde fica o banco (no servidor não é `data/`).
+- 24 testes, incluindo um que garante que o site **normal** continua sem faixa e sem dados de exemplo.
+
+**Decisão: os preços da demonstração são inventados.** O projeto tem a regra de **não redistribuir dados das lojas**; publicar uma cópia dos preços reais da KaBuM! ou da Amazon na internet seria exatamente isso. Os nomes das lojas são os de verdade (é o que o código reconhece pelo domínio), e a faixa diz, em letras claras, que os preços são exemplos.
+
+**Conceitos para explicar em entrevista**
+- **Feature flag:** uma variável de ambiente muda o comportamento do mesmo código, sem um segundo projeto para manter.
+- **Semente (seed) de banco:** dados iniciais que fazem uma instalação vazia já ter o que mostrar.
+- **Redirecionamento aberto:** ao recusar um POST, o site volta sempre para a inicial em vez de seguir o `Referer`, que é um valor que o visitante controla.
+- **Disco descartável:** na nuvem, o que foi gravado some quando o servidor reinicia. Por isso a demonstração se reconstrói sozinha.
+
+**Commit sugerido:** `feat: add demo mode for the public deployment`
+
+**Falta para o site ir ao ar:** escolher a hospedagem, criar o servidor com `MONITOR_DEMO=1` e apontar o deploy para o GitHub.
+
+---
+
 ## Próximos passos
 
 Tarefas do arquivo `mudanças`, feitas **uma por vez**, com revisão entre elas:
@@ -594,5 +625,5 @@ Roteiro geral do projeto (depois das tarefas acima):
 | Testes no GitHub Actions (CI) | ✅ 2026-09-14 |
 | **Proteção CSRF** nos formulários (segurança antes do deploy) | 🔍 2026-09-17 |
 | **Chave da sessão** fora do código (`.env` ou gerada) | 🔍 2026-09-21 |
-| Deploy com modo demonstração | 💡 |
+| Deploy: **modo demonstração** (código) ✅ 2026-09-21 · falta escolher a hospedagem | 🔍 |
 | README bilíngue com GIF | 💡 |
