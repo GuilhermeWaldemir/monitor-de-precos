@@ -8,6 +8,15 @@ Compara o preço do **mesmo produto** em várias lojas online brasileiras, guard
 
 > Projeto em construção. README completo (PT/EN, GIF de demonstração) virá na fase final.
 
+<p align="center">
+  <img src="docs/produto.png" alt="Página de um produto: melhor preço destacado, preços de cada loja e gráfico com a variação ao longo do tempo" width="820">
+</p>
+<p align="center">
+  <img src="docs/lista.png" alt="Lista de produtos, com as categorias na lateral e o filtro por preço" width="820">
+</p>
+
+> As imagens usam o modo demonstração: os produtos e preços são exemplos inventados.
+
 ## Como funciona
 
 1. Você organiza os produtos em **categorias** (Eletrônicos, Vestuário, Perfumes ou as que criar).
